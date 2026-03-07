@@ -59,7 +59,7 @@ export default function Signup() {
           border: '1.5px solid #ede8df',
         }}>
           <h1 style={{
-            fontFamily: 'Syne, sans-serif', fontWeight: 800,
+            fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800,
             fontSize: '1.8rem', color: '#0f1a14', letterSpacing: '-0.5px',
             marginBottom: '6px',
           }}>Create your account</h1>
@@ -70,7 +70,7 @@ export default function Signup() {
           {success ? (
             <div style={{ textAlign: 'center', padding: '20px 0' }}>
               <div style={{ fontSize: '2rem', marginBottom: '12px' }}>📬</div>
-              <h3 style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '1.1rem', color: '#0f1a14', marginBottom: '8px' }}>Check your email</h3>
+              <h3 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700, fontSize: '1.1rem', color: '#0f1a14', marginBottom: '8px' }}>Check your email</h3>
               <p style={{ fontSize: '0.85rem', color: '#4a4235', lineHeight: 1.6 }}>
                 We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account.
               </p>

@@ -286,7 +286,7 @@ export default function App() {
 
           {/* Header */}
           <div style={{ marginBottom: '28px' }}>
-            <h1 style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: '2.4rem', color: '#0f1a14', letterSpacing: '-1.5px', lineHeight: 1 }}>Lists</h1>
+            <h1 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800, fontSize: '2.4rem', color: '#0f1a14', letterSpacing: '-1.5px', lineHeight: 1 }}>Lists</h1>
             <p style={{ fontSize: '0.72rem', color: '#9a8f7a', marginTop: '6px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Your digital notebook</p>
             <div style={{ display: 'flex', gap: '6px', marginTop: '14px', flexWrap: 'wrap' }}>
               <StatPill label={`${total} total`} />
@@ -440,7 +440,7 @@ export default function App() {
         <Modal onClose={() => setShowUpgrade(false)}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>⭐</div>
-            <h2 style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: '1.5rem', color: '#0f1a14', letterSpacing: '-0.5px', marginBottom: '8px' }}>Upgrade to Pro</h2>
+            <h2 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800, fontSize: '1.5rem', color: '#0f1a14', letterSpacing: '-0.5px', marginBottom: '8px' }}>Upgrade to Pro</h2>
             <p style={{ fontSize: '0.85rem', color: '#4a4235', lineHeight: 1.6, marginBottom: '24px' }}>
               You've hit the free plan limit. Upgrade to Pro for unlimited lists, unlimited tasks, and sync across all your devices.
             </p>
@@ -466,7 +466,7 @@ export default function App() {
       {/* NEW LIST MODAL */}
       {showNewList && (
         <Modal onClose={() => setShowNewList(false)}>
-          <h2 style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: '1.4rem', color: '#0f1a14', letterSpacing: '-0.5px', marginBottom: '6px' }}>New List</h2>
+          <h2 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800, fontSize: '1.4rem', color: '#0f1a14', letterSpacing: '-0.5px', marginBottom: '6px' }}>New List</h2>
           <p style={{ fontSize: '0.8rem', color: '#9a8f7a', marginBottom: '20px' }}>Give it a name and pick a colour.</p>
           <input
             value={newListName} onChange={e => setNewListName(e.target.value)}
@@ -568,7 +568,7 @@ function FocusPanel({ top3, items, lists, top3Open, onToggleOpen, onToggleDone, 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'linear-gradient(135deg, #1a7a52, #0d5438)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', boxShadow: '0 2px 8px rgba(15,102,68,0.25)' }}>🎯</div>
           <div>
-            <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: '#0f6644' }}>Today's Focus</div>
+            <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700, fontSize: '0.95rem', color: '#0f6644' }}>Today's Focus</div>
             <div style={{ fontSize: '0.65rem', color: '#9a8f7a', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               {new Date().toLocaleDateString('en-AU', { weekday: 'long', month: 'short', day: 'numeric' }).toUpperCase()}
             </div>
@@ -591,7 +591,7 @@ function FocusPanel({ top3, items, lists, top3Open, onToggleOpen, onToggleDone, 
             const item = resolvedTop3[i]
             return (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', borderBottom: i < 2 ? '1px solid #f0f8f4' : 'none', minHeight: '48px' }}>
-                <span style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '0.65rem', color: '#0f6644', opacity: 0.7, width: '18px', flexShrink: 0 }}>{String(i + 1).padStart(2, '0')}</span>
+                <span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700, fontSize: '0.65rem', color: '#0f6644', opacity: 0.7, width: '18px', flexShrink: 0 }}>{String(i + 1).padStart(2, '0')}</span>
                 {item ? (
                   <>
                     <div onClick={() => onToggleDone(item.id)} style={{ width: '18px', height: '18px', borderRadius: '50%', border: `2px solid ${item.done ? '#0f6644' : 'rgba(15,102,68,0.3)'}`, background: item.done ? '#0f6644' : 'transparent', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}>
@@ -651,7 +651,7 @@ function EmptyState({ filter }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 20px', gap: '10px' }}>
       <div style={{ fontSize: '2rem', opacity: 0.5 }}>{s.icon}</div>
-      <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: '#4a4235' }}>{s.title}</div>
+      <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700, fontSize: '0.95rem', color: '#4a4235' }}>{s.title}</div>
       <div style={{ fontSize: '0.78rem', color: '#9a8f7a', textAlign: 'center', maxWidth: '200px', lineHeight: 1.5 }}>{s.sub}</div>
     </div>
   )

@@ -62,7 +62,7 @@ export default function Login() {
           border: '1.5px solid #ede8df',
         }}>
           <h1 style={{
-            fontFamily: 'Syne, sans-serif', fontWeight: 800,
+            fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800,
             fontSize: '1.8rem', color: '#0f1a14', letterSpacing: '-0.5px',
             marginBottom: '6px',
           }}>Welcome back</h1>
