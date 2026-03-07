@@ -226,7 +226,7 @@ export default function Landing() {
                 padding: '4px 10px', borderRadius: '10px', textTransform: 'uppercase',
               }}>Most popular</div>
               <div style={{ fontSize: '0.72rem', fontWeight: 600, color: '#a8e8c8', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '12px' }}>Pro</div>
-              <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: '2.8rem', color: '#fff', letterSpacing: '-1px', marginBottom: '4px' }}>$7</div>
+              <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: '2.8rem', color: '#fff', letterSpacing: '-1px', marginBottom: '4px' }}>$2.99</div>
               <div style={{ fontSize: '0.82rem', color: '#a8e8c8', marginBottom: '32px' }}>per month, cancel anytime</div>
               {proTier.map((f, i) => <PricingRow key={i} text={f} bright />)}
               <Link href="/signup?plan=pro" style={{
