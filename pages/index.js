@@ -164,6 +164,63 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* FOCUS PHILOSOPHY */}
+      <section style={{
+        padding: '100px 24px',
+        background: 'linear-gradient(160deg, #f0ece2 0%, #f7f4ef 100%)',
+      }}>
+        <div style={{ maxWidth: '860px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '64px' }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#0f6644', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: '16px', fontFamily: 'Inter, sans-serif' }}>
+              The science of doing less, better
+            </div>
+            <h2 style={{
+              fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800,
+              fontSize: 'clamp(1.9rem, 4vw, 2.6rem)',
+              color: '#0f1a14', letterSpacing: '-1px', lineHeight: 1.15, marginBottom: '20px',
+            }}>
+              The world's best have always<br />
+              <span style={{ color: '#0f6644' }}>kept a short list.</span>
+            </h2>
+            <p style={{ fontSize: '1rem', color: '#5a5248', maxWidth: '520px', margin: '0 auto', lineHeight: 1.75, fontFamily: 'Inter, sans-serif' }}>
+              From a steel magnate in 1918 to the most influential leaders of our time — the most effective people share one habit: a ruthless focus on what truly matters today.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
+            {philosophyCards.map((card, i) => (
+              <div key={i} style={{
+                background: '#fff', borderRadius: '16px', padding: '32px',
+                border: '1px solid #ede8df',
+                boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
+              }}>
+                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#0f6644', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '12px', fontFamily: 'Inter, sans-serif' }}>{card.era}</div>
+                <p style={{ fontSize: '0.95rem', color: '#0f1a14', lineHeight: 1.7, marginBottom: '20px', fontFamily: 'Inter, sans-serif', fontStyle: 'italic' }}>
+                  "{card.insight}"
+                </p>
+                <div style={{ borderTop: '1px solid #f0ece4', paddingTop: '16px' }}>
+                  <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700, fontSize: '0.9rem', color: '#0f1a14' }}>{card.name}</div>
+                  <div style={{ fontSize: '0.78rem', color: '#9a8f7a', fontFamily: 'Inter, sans-serif' }}>{card.title}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ textAlign: 'center', marginTop: '56px' }}>
+            <div style={{
+              display: 'inline-block', background: '#eaf5f0',
+              border: '1px solid rgba(15,102,68,0.15)',
+              borderRadius: '14px', padding: '24px 40px',
+            }}>
+              <p style={{ fontSize: '1rem', color: '#0f1a14', lineHeight: 1.7, fontFamily: 'Inter, sans-serif', margin: 0 }}>
+                List. is built around this same principle — your <strong>Today's Focus</strong> gives you<br />
+                three priorities, every day. Nothing more. Nothing less.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* PRICING */}
       <section id="pricing" style={{
         padding: '100px 24px',
@@ -364,6 +421,27 @@ const features = [
   { icon: '🔄', bg: '#eaf5f0', title: 'Sync Everywhere', desc: 'Your lists follow you across phone, tablet, and desktop. Always up to date.' },
   { icon: '↕️', bg: '#fdf0ea', title: 'Drag to Reorder', desc: 'Grab any task and drag it into the exact order you want. No fussing around.' },
   { icon: '📊', bg: '#fdf0ea', title: 'Progress Tracking', desc: 'Watch the progress bar fill up as you check things off. Genuinely satisfying.' },
+]
+
+const philosophyCards = [
+  {
+    era: '1918',
+    insight: 'Write down your six most important tasks. Work through them in order. Do not move on until the first is finished.',
+    name: 'Ivy Lee',
+    title: 'Productivity consultant — his method earned $25,000 from Charles Schwab',
+  },
+  {
+    era: 'The Buffett Method',
+    insight: 'The difference between successful people and very successful people is that very successful people say no to almost everything.',
+    name: 'Warren Buffett',
+    title: 'Investor & CEO — Berkshire Hathaway',
+  },
+  {
+    era: 'The Jobs Principle',
+    insight: 'Deciding what not to do is as important as deciding what to do. Focus means saying no to the hundred other good ideas.',
+    name: 'Steve Jobs',
+    title: 'Co-founder — Apple',
+  },
 ]
 
 const freeTier = [

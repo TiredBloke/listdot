@@ -458,7 +458,7 @@ export default function App() {
               background: '#0f6644', color: '#fff', fontFamily: 'Inter, sans-serif',
               fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer',
               boxShadow: '0 4px 16px rgba(15,102,68,0.3)',
-            }}>{upgradingLoading ? 'Redirecting to checkout…' : 'Start 7-day free trial — $7/mo'}</button>
+            }}>{upgradingLoading ? 'Redirecting to checkout…' : 'Start 7-day free trial — $2.99/mo'}</button>
             <p style={{ marginTop: '12px', fontSize: '0.75rem', color: '#9a8f7a' }}>Cancel anytime. No charge during trial.</p>
           </div>
         </Modal>
