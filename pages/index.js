@@ -9,6 +9,9 @@ export default function Landing() {
         <title>List. — Focus. Done.</title>
         <meta name="description" content="The notebook you always meant to digitise. Manage tasks, set daily priorities, and get things done." />
         <link rel="icon" href="/favicon.svg" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
       </Head>
 
       {/* NAV */}
@@ -63,18 +66,8 @@ export default function Landing() {
         }} />
 
         <div style={{ animation: 'fadeUp 0.7s ease forwards', opacity: 0 }}>
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: '8px',
-            background: '#eaf5f0', border: '1.5px solid rgba(15,102,68,0.2)',
-            borderRadius: '20px', padding: '6px 14px', marginBottom: '28px',
-          }}>
-            <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#0f6644', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              ✨ Free to start · No credit card needed
-            </span>
-          </div>
-
           <h1 style={{
-            fontFamily: 'Syne, sans-serif', fontWeight: 800,
+            fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800,
             fontSize: 'clamp(2.8rem, 7vw, 5rem)',
             color: '#0f1a14', letterSpacing: '-2px', lineHeight: 1.05,
             marginBottom: '24px', maxWidth: '700px',
@@ -88,7 +81,7 @@ export default function Landing() {
             maxWidth: '520px', lineHeight: 1.7, marginBottom: '40px',
             fontWeight: 400,
           }}>
-            Stop juggling sticky notes and scraps of paper. List. keeps your tasks organised, lets you flag today's priorities, and syncs across every device.
+            Stop juggling sticky notes and scraps of paper. Keep your tasks organised, flag today's priorities, and sync across every device.
           </p>
 
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -130,7 +123,7 @@ export default function Landing() {
       <section style={{ padding: '100px 24px', maxWidth: '960px', margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: '64px' }}>
           <h2 style={{
-            fontFamily: 'Syne, sans-serif', fontWeight: 800,
+            fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800,
             fontSize: 'clamp(2rem, 4vw, 2.8rem)',
             color: '#0f1a14', letterSpacing: '-1px', marginBottom: '16px',
           }}>
@@ -161,7 +154,7 @@ export default function Landing() {
                 justifyContent: 'center', fontSize: '1.3rem', marginBottom: '16px',
               }}>{f.icon}</div>
               <h3 style={{
-                fontFamily: 'Syne, sans-serif', fontWeight: 700,
+                fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700,
                 fontSize: '1rem', color: '#0f1a14', marginBottom: '8px',
                 letterSpacing: '-0.3px',
               }}>{f.title}</h3>
@@ -178,7 +171,7 @@ export default function Landing() {
       }}>
         <div style={{ maxWidth: '860px', margin: '0 auto', textAlign: 'center' }}>
           <h2 style={{
-            fontFamily: 'Syne, sans-serif', fontWeight: 800,
+            fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800,
             fontSize: 'clamp(2rem, 4vw, 2.8rem)',
             color: '#fff', letterSpacing: '-1px', marginBottom: '16px',
           }}>
@@ -200,7 +193,7 @@ export default function Landing() {
               border: '1.5px solid #2a4030', textAlign: 'left',
             }}>
               <div style={{ fontSize: '0.72rem', fontWeight: 600, color: '#3d7a5a', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '12px' }}>Free</div>
-              <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: '2.8rem', color: '#fff', letterSpacing: '-1px', marginBottom: '4px' }}>$0</div>
+              <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800, fontSize: '2.8rem', color: '#fff', letterSpacing: '-1px', marginBottom: '4px' }}>$0</div>
               <div style={{ fontSize: '0.82rem', color: '#5a8a70', marginBottom: '32px' }}>forever, no card needed</div>
               {freeTier.map((f, i) => <PricingRow key={i} text={f} />)}
               <Link href="/signup" style={{
@@ -226,7 +219,7 @@ export default function Landing() {
                 padding: '4px 10px', borderRadius: '10px', textTransform: 'uppercase',
               }}>Most popular</div>
               <div style={{ fontSize: '0.72rem', fontWeight: 600, color: '#a8e8c8', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '12px' }}>Pro</div>
-              <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: '2.8rem', color: '#fff', letterSpacing: '-1px', marginBottom: '4px' }}>$2.99</div>
+              <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800, fontSize: '2.8rem', color: '#fff', letterSpacing: '-1px', marginBottom: '4px' }}>$2.99</div>
               <div style={{ fontSize: '0.82rem', color: '#a8e8c8', marginBottom: '32px' }}>per month, cancel anytime</div>
               {proTier.map((f, i) => <PricingRow key={i} text={f} bright />)}
               <Link href="/signup?plan=pro" style={{
@@ -247,7 +240,7 @@ export default function Landing() {
         background: 'linear-gradient(160deg, #f7f4ef 0%, #eaf5f0 100%)',
       }}>
         <h2 style={{
-          fontFamily: 'Syne, sans-serif', fontWeight: 800,
+          fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800,
           fontSize: 'clamp(1.8rem, 4vw, 2.6rem)',
           color: '#0f1a14', letterSpacing: '-1px', marginBottom: '16px',
         }}>
@@ -320,7 +313,7 @@ function AppMockup() {
       <div style={{ background: '#eaf5f0', padding: '16px 20px', borderBottom: '1.5px solid #d4ebe0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
           <span style={{ fontSize: '1rem' }}>🎯</span>
-          <span style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: '0.85rem', color: '#0f6644' }}>Today's Focus</span>
+          <span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700, fontSize: '0.85rem', color: '#0f6644' }}>Today's Focus</span>
           <span style={{ fontSize: '0.65rem', background: '#0f6644', color: '#fff', borderRadius: '10px', padding: '2px 8px', fontWeight: 600 }}>2 / 3</span>
         </div>
         {mockFocus.map((f, i) => (
