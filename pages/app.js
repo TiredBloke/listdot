@@ -1,6 +1,6 @@
 import Head from 'next/head'
 import { useState, useEffect, useCallback } from 'react'
-import { useSupabaseClient, useUser } from '@supabase/auth-helpers-react'
+import { useSupabaseClient, useUser, useSessionContext } from '@supabase/auth-helpers-react'
 import { useRouter } from 'next/router'
 import { Logo } from '../components/Logo'
 
@@ -11,6 +11,7 @@ const FREE_MAX_TASKS = 20
 export default function App() {
   const supabase = useSupabaseClient()
   const user = useUser()
+  const { isLoading: sessionLoading } = useSessionContext()
   const router = useRouter()
 
   const [profile, setProfile] = useState(null)
@@ -32,8 +33,8 @@ export default function App() {
 
   // Redirect if not logged in
   useEffect(() => {
-    if (user === null) router.push('/login')
-  }, [user, router])
+    if (!sessionLoading && user === null) router.push('/login')
+  }, [user, router, sessionLoading])
 
   // Show success banner if redirected from Stripe
   useEffect(() => {
