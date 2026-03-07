@@ -25,7 +25,7 @@ export function Logo({ dark = false, size = 'md' }) {
       </svg>
       {/* Wordmark */}
       <span style={{
-        fontFamily: 'Syne, sans-serif',
+        fontFamily: "'Plus Jakarta Sans', sans-serif",
         fontWeight: 800,
         fontSize: s * 0.72 + 'px',
         letterSpacing: '-0.04em',
