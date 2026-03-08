@@ -33,7 +33,7 @@ export default function App() {
 
   // Redirect if not logged in
   useEffect(() => {
-    if (!sessionLoading && user === null) router.push('/login')
+    if (!sessionLoading && user === null) router.push(`/login?redirect=${encodeURIComponent(router.asPath)}`)
   }, [user, router, sessionLoading])
 
   // Show success banner if redirected from Stripe

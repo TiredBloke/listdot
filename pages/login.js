@@ -13,6 +13,11 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  const getRedirectTo = () => {
+    const redirect = router.query.redirect
+    return redirect ? decodeURIComponent(redirect) : '/app'
+  }
+
   const handleLogin = async (e) => {
     e.preventDefault()
     setLoading(true)
@@ -22,14 +27,15 @@ export default function Login() {
       setError('Invalid email or password. Please try again.')
       setLoading(false)
     } else {
-      router.push('/app')
+      router.push(getRedirectTo())
     }
   }
 
   const handleGoogle = async () => {
+    const redirectTo = getRedirectTo()
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/app` }
+      options: { redirectTo: `${window.location.origin}${redirectTo}` }
     })
   }
 
