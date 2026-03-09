@@ -431,9 +431,9 @@ export default function Landing() {
           <span style={{ color: '#0f6644', fontWeight: 600 }}>More dots coming.</span>
         </p>
         <div style={{ display: 'flex', gap: '20px' }}>
-          {['Privacy', 'Terms', 'Contact'].map(l => (
-            <a key={l} href="#" style={{ fontSize: '0.75rem', color: '#9a8f7a', textDecoration: 'none' }}>{l}</a>
-          ))}
+          <Link href="/privacy" style={{ fontSize: '0.75rem', color: '#9a8f7a', textDecoration: 'none' }}>Privacy</Link>
+          <Link href="/terms" style={{ fontSize: '0.75rem', color: '#9a8f7a', textDecoration: 'none' }}>Terms</Link>
+          <a href="mailto:hello@listdot.app" style={{ fontSize: '0.75rem', color: '#9a8f7a', textDecoration: 'none' }}>Contact</a>
         </div>
       </footer>
 
