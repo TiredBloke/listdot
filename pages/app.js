@@ -1,5 +1,5 @@
 import Head from 'next/head'
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSupabaseClient, useUser, useSessionContext } from '@supabase/auth-helpers-react'
 import { useRouter } from 'next/router'
 import { Logo } from '../components/Logo'
@@ -18,7 +18,6 @@ export default function App() {
   const [lists, setLists] = useState([])
   const [activeList, setActiveList] = useState(null)
   const [items, setItems] = useState([])
-  const [allItems, setAllItems] = useState([])
   const [top3, setTop3] = useState([])
   const [filter, setFilter] = useState('all')
   const [newItemText, setNewItemText] = useState('')
@@ -30,11 +29,8 @@ export default function App() {
   const [dragSrcId, setDragSrcId] = useState(null)
   const [top3Open, setTop3Open] = useState(true)
   const [upgradingLoading, setUpgradingLoading] = useState(false)
+  const [showUserMenu, setShowUserMenu] = useState(false)
   const [successBanner, setSuccessBanner] = useState(false)
-  const [focusItem, setFocusItem] = useState(null)
-  const [showSearch, setShowSearch] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [focusTimers, setFocusTimers] = useState({})
 
   // Redirect if not logged in
   useEffect(() => {
@@ -49,19 +45,6 @@ export default function App() {
     }
   }, [router.query])
 
-  // Cmd/Ctrl+K to open search
-  useEffect(() => {
-    const handler = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        setShowSearch(s => !s)
-      }
-      if (e.key === 'Escape') setShowSearch(false)
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [])
-
   // Load profile + lists
   useEffect(() => {
     if (!user) return
@@ -70,13 +53,11 @@ export default function App() {
 
   const loadData = async () => {
     setLoading(true)
-    const [{ data: prof }, { data: listsData }, { data: allItemsData }] = await Promise.all([
+    const [{ data: prof }, { data: listsData }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase.from('lists').select('*').eq('user_id', user.id).order('created_at'),
-      supabase.from('items').select('*').eq('user_id', user.id),
     ])
     setProfile(prof)
-    setAllItems(allItemsData || [])
     if (listsData && listsData.length > 0) {
       setLists(listsData)
       setActiveList(listsData[0])
@@ -117,6 +98,30 @@ export default function App() {
     await supabase.from('profiles').update({ top3: newTop3, top3_open: newOpen ?? top3Open }).eq('id', user.id)
   }
 
+  // Clear completed tasks from Today's Focus
+  const clearDoneFocus = async () => {
+    const doneIds = top3
+      .map(ref => items.find(i => i.id === ref.itemId))
+      .filter(item => item && item.done)
+      .map(item => item.id)
+    if (doneIds.length === 0) return
+    const newTop3 = top3.filter(ref => !doneIds.includes(ref.itemId))
+    await saveTop3(newTop3)
+    await Promise.all(doneIds.map(id => supabase.from('items').update({ starred: false }).eq('id', id)))
+    setItems(prev => prev.map(i => doneIds.includes(i.id) ? { ...i, starred: false } : i))
+  }
+
+  // Auto-clear completed focus items on first load of the day
+  useEffect(() => {
+    if (!user || !profile || top3.length === 0) return
+    const today = new Date().toDateString()
+    const lastClear = localStorage.getItem(`focus_clear_${user.id}`)
+    if (lastClear !== today) {
+      clearDoneFocus()
+      localStorage.setItem(`focus_clear_${user.id}`, today)
+    }
+  }, [profile])
+
   const isPro = profile?.is_pro
 
   // Limits check
@@ -131,16 +136,15 @@ export default function App() {
       list_id: activeList.id, user_id: user.id,
       text: newItemText.trim(), done: false, starred: false, position: pos
     }).select().single()
-    if (data) { setItems(prev => [...prev, data]); setAllItems(prev => [...prev, data]) }
+    if (data) setItems(prev => [...prev, data])
     setNewItemText('')
   }
 
   const toggleDone = async (id) => {
-    const item = allItems.find(i => i.id === id) || items.find(i => i.id === id)
+    const item = items.find(i => i.id === id)
     if (!item) return
     const updated = { ...item, done: !item.done }
     setItems(prev => prev.map(i => i.id === id ? updated : i))
-    setAllItems(prev => prev.map(i => i.id === id ? updated : i))
     await supabase.from('items').update({ done: updated.done }).eq('id', id)
   }
 
@@ -154,7 +158,7 @@ export default function App() {
     let newTop3 = [...top3]
     if (updated.starred) {
       if (!newTop3.find(r => r.itemId === id)) {
-        if (newTop3.length >= 5) newTop3.shift()
+        if (newTop3.length >= 3) newTop3.shift()
         newTop3.push({ itemId: id, listId: activeList.id, listName: activeList.name })
       }
     } else {
@@ -288,16 +292,6 @@ export default function App() {
         }}>
           <Logo size="sm" />
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button onClick={() => setShowSearch(s => !s)} style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: '#9a8f7a', fontSize: '1.1rem', padding: '4px 8px',
-              borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px',
-              transition: 'color 0.2s',
-            }}
-              onMouseOver={e => e.currentTarget.style.color = '#0f6644'}
-              onMouseOut={e => e.currentTarget.style.color = '#9a8f7a'}
-              title="Search (Ctrl+K)"
-            >🔍</button>
             {!isPro && (
               <button onClick={() => setShowUpgrade(true)} style={{
                 fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', fontWeight: 600,
@@ -305,16 +299,68 @@ export default function App() {
                 borderRadius: '20px', padding: '5px 14px', cursor: 'pointer',
               }}>⭐ Upgrade to Pro</button>
             )}
-            {isPro && <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#0f6644', background: '#eaf5f0', padding: '4px 10px', borderRadius: '10px' }}>✓ Pro</span>}
-            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#0f6644', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}
-              title={user.email} onClick={logout}>
-              {user.email?.[0]?.toUpperCase()}
+            {/* Avatar + dropdown */}
+            <div style={{ position: 'relative' }}>
+              <div
+                onClick={() => setShowUserMenu(v => !v)}
+                style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#0f6644', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', userSelect: 'none' }}
+              >
+                {user.email?.[0]?.toUpperCase()}
+              </div>
+              {showUserMenu && (
+                <>
+                  {/* Backdrop to close */}
+                  <div onClick={() => setShowUserMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 150 }} />
+                  {/* Dropdown */}
+                  <div style={{
+                    position: 'absolute', top: '40px', right: 0,
+                    background: '#fff', borderRadius: '14px',
+                    border: '1.5px solid #ede8df',
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+                    zIndex: 200, minWidth: '220px', overflow: 'hidden',
+                  }}>
+                    {/* Account info */}
+                    <div style={{ padding: '16px', borderBottom: '1.5px solid #f0ece4' }}>
+                      <div style={{ fontSize: '0.68rem', color: '#9a8f7a', fontFamily: 'Inter, sans-serif', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Signed in as</div>
+                      <div style={{ fontSize: '0.82rem', color: '#0f1a14', fontFamily: 'Inter, sans-serif', fontWeight: 600, wordBreak: 'break-all' }}>{user.email}</div>
+                    </div>
+                    {/* Plan */}
+                    <div style={{ padding: '12px 16px', borderBottom: '1.5px solid #f0ece4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '0.82rem', color: '#4a4235', fontFamily: 'Inter, sans-serif' }}>Plan</span>
+                      {isPro
+                        ? <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#0f6644', background: '#eaf5f0', border: '1px solid rgba(15,102,68,0.2)', padding: '3px 10px', borderRadius: '10px' }}>✓ Pro</span>
+                        : <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#9a8f7a', background: '#f7f4ef', border: '1px solid #ede8df', padding: '3px 10px', borderRadius: '10px' }}>Free</span>
+                      }
+                    </div>
+                    {/* Upgrade — only if free */}
+                    {!isPro && (
+                      <div style={{ padding: '8px' }}>
+                        <button onClick={() => { setShowUserMenu(false); setShowUpgrade(true) }} style={{
+                          width: '100%', padding: '10px', borderRadius: '8px',
+                          background: '#0f6644', border: 'none',
+                          fontFamily: 'Inter, sans-serif', fontSize: '0.82rem', fontWeight: 600,
+                          color: '#fff', cursor: 'pointer',
+                        }}>⭐ Upgrade to Pro</button>
+                      </div>
+                    )}
+                    {/* Log out */}
+                    <div style={{ padding: isPro ? '8px' : '0 8px 8px' }}>
+                      <button onClick={() => { setShowUserMenu(false); logout() }} style={{
+                        width: '100%', padding: '10px', borderRadius: '8px',
+                        background: 'none', border: '1px solid #ede8df',
+                        fontFamily: 'Inter, sans-serif', fontSize: '0.82rem', fontWeight: 500,
+                        color: '#9a8f7a', cursor: 'pointer', textAlign: 'left',
+                      }}>Log out</button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
 
         {/* MAIN CONTENT */}
-        <div style={{ maxWidth: '860px', margin: '0 auto', padding: '80px 24px 100px' }}>
+        <div style={{ maxWidth: '600px', margin: '0 auto', padding: '80px 16px 100px' }}>
 
           {/* Header */}
           <div style={{ marginBottom: '28px' }}>
@@ -330,13 +376,14 @@ export default function App() {
 
           {/* Today's Focus */}
           <FocusPanel
-            top3={top3} items={allItems} lists={lists}
+            top3={top3} items={items} lists={lists}
             top3Open={top3Open}
             onToggleOpen={async () => {
               const next = !top3Open; setTop3Open(next)
               await supabase.from('profiles').update({ top3_open: next }).eq('id', user.id)
             }}
             onToggleDone={toggleDone}
+            onClearDone={clearDoneFocus}
             onRemove={async (itemId) => {
               const newTop3 = top3.filter(r => r.itemId !== itemId)
               await saveTop3(newTop3)
@@ -344,7 +391,6 @@ export default function App() {
               if (item) await supabase.from('items').update({ starred: false }).eq('id', itemId)
               setItems(prev => prev.map(i => i.id === itemId ? { ...i, starred: false } : i))
             }}
-            onFocus={(item) => setFocusItem(item)}
           />
 
           {/* List tabs */}
@@ -527,42 +573,12 @@ export default function App() {
           </div>
         </Modal>
       )}
-      {showSearch && (
-        <SearchModal
-          allItems={allItems}
-          lists={lists}
-          onClose={() => { setShowSearch(false); setSearchQuery('') }}
-          onSelectItem={(item) => {
-            const list = lists.find(l => l.id === item.list_id)
-            if (list) setActiveList(list)
-            setShowSearch(false)
-            setSearchQuery('')
-          }}
-        />
-      )}
-
-      {focusItem && (
-        <FocusScreen
-          item={focusItem}
-          initialSeconds={focusTimers[focusItem.id] || 0}
-          onDone={() => {
-            setFocusTimers(t => { const n = {...t}; delete n[focusItem.id]; return n })
-            toggleDone(focusItem.id)
-            setFocusItem(null)
-          }}
-          onExit={(elapsed) => {
-            setFocusTimers(t => ({ ...t, [focusItem.id]: elapsed }))
-            setFocusItem(null)
-          }}
-        />
-      )}
     </>
   )
 }
 
 function ItemRow({ item, listColor, onToggleDone, onToggleStar, onDelete, onTextChange, onDragStart, onDragEnd, onDrop, dragSrcId }) {
   const [dragOver, setDragOver] = useState(false)
-  const [hovered, setHovered] = useState(false)
   return (
     <div
       draggable
@@ -570,8 +586,6 @@ function ItemRow({ item, listColor, onToggleDone, onToggleStar, onDelete, onText
       onDragOver={e => { e.preventDefault(); setDragOver(true) }}
       onDragLeave={() => setDragOver(false)}
       onDrop={() => { setDragOver(false); onDrop() }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
       style={{
         display: 'flex', alignItems: 'center', gap: '10px',
         padding: '11px 16px', borderBottom: '1px solid #f0ece4',
@@ -609,7 +623,6 @@ function ItemRow({ item, listColor, onToggleDone, onToggleStar, onDelete, onText
         onMouseOut={e => e.target.style.transform = 'scale(1)'}
       >{item.starred ? '⭐' : '☆'}</button>
       <span style={{ fontSize: '0.62rem', color: '#c0b8a8', whiteSpace: 'nowrap' }}>{formatDate(item.created_at)}</span>
-
       <button onClick={onDelete} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: '#e0d8cc', padding: '4px', opacity: 0, transition: 'opacity 0.15s, color 0.15s' }}
         onMouseOver={e => { e.target.style.opacity = 1; e.target.style.color = '#e04e0a' }}
         onMouseOut={e => { e.target.style.opacity = 0; e.target.style.color = '#e0d8cc' }}
@@ -618,14 +631,14 @@ function ItemRow({ item, listColor, onToggleDone, onToggleStar, onDelete, onText
   )
 }
 
-function FocusPanel({ top3, items, lists, top3Open, onToggleOpen, onToggleDone, onRemove, onFocus }) {
+function FocusPanel({ top3, items, lists, top3Open, onToggleOpen, onToggleDone, onClearDone, onRemove }) {
   const resolvedTop3 = top3.map(ref => {
     const item = items.find(i => i.id === ref.itemId)
     return item ? { ...item, listName: ref.listName } : null
   }).filter(Boolean)
 
   const doneCount = resolvedTop3.filter(i => i.done).length
-  const pct = resolvedTop3.length === 0 ? 0 : Math.round((doneCount / 3) * 100)
+  const pct = resolvedTop3.length === 0 ? 0 : Math.round((doneCount / resolvedTop3.length) * 100)
 
   return (
     <div style={{ background: '#fff', borderRadius: '12px', boxShadow: '0 4px 20px rgba(0,0,0,0.07)', border: '1.5px solid rgba(15,102,68,0.12)', overflow: 'hidden', marginBottom: '20px', position: 'relative' }}>
@@ -648,56 +661,45 @@ function FocusPanel({ top3, items, lists, top3Open, onToggleOpen, onToggleDone, 
             <div style={{ height: '4px', background: '#eaf5f0', borderRadius: '4px', overflow: 'hidden' }}>
               <div style={{ height: '100%', background: 'linear-gradient(90deg, #0f6644, #2db87a)', borderRadius: '4px', width: pct + '%', transition: 'width 0.5s cubic-bezier(0.4,0,0.2,1)' }} />
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', paddingBottom: '10px', borderBottom: '1.5px solid #eaf5f0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', paddingBottom: '10px', borderBottom: '1.5px solid #eaf5f0' }}>
               <span style={{ fontSize: '0.68rem', color: '#0f6644', fontWeight: 600 }}>{doneCount} of {resolvedTop3.length} complete{resolvedTop3.length < 5 ? ` · ${5 - resolvedTop3.length} slots free` : ''}</span>
-              <span style={{ fontSize: '0.65rem', color: '#9a8f7a' }}>Star tasks to add them here</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {doneCount > 0 && (
+                  <button onClick={onClearDone} style={{
+                    fontFamily: 'Inter, sans-serif', fontSize: '0.65rem', fontWeight: 600,
+                    color: '#0f6644', background: '#eaf5f0', border: '1px solid rgba(15,102,68,0.2)',
+                    borderRadius: '10px', padding: '3px 10px', cursor: 'pointer',
+                  }}>
+                    Clear done ✓
+                  </button>
+                )}
+                <span style={{ fontSize: '0.65rem', color: '#9a8f7a' }}>Star tasks to add them here</span>
+              </div>
             </div>
           </div>
-          {[0, 1, 2, 3, 4].map(i => {
+          {[0, 1, 2].map(i => {
             const item = resolvedTop3[i]
             return (
-              <FocusPanelRow
-                key={i}
-                index={i}
-                item={item}
-                onToggleDone={onToggleDone}
-                onRemove={onRemove}
-                onFocus={onFocus}
-              />
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', borderBottom: i < 2 ? '1px solid #f0f8f4' : 'none', minHeight: '48px' }}>
+                <span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700, fontSize: '0.65rem', color: '#0f6644', opacity: 0.7, width: '18px', flexShrink: 0 }}>{String(i + 1).padStart(2, '0')}</span>
+                {item ? (
+                  <>
+                    <div onClick={() => onToggleDone(item.id)} style={{ width: '18px', height: '18px', borderRadius: '50%', border: `2px solid ${item.done ? '#0f6644' : 'rgba(15,102,68,0.3)'}`, background: item.done ? '#0f6644' : 'transparent', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}>
+                      {item.done && <span style={{ fontSize: '0.5rem', color: '#fff', fontWeight: 700 }}>✓</span>}
+                    </div>
+                    <span style={{ flex: 1, fontSize: '0.87rem', color: item.done ? '#9a8f7a' : '#0f1a14', textDecoration: item.done ? 'line-through' : 'none' }}>{item.text}</span>
+                    <span style={{ fontSize: '0.62rem', padding: '2px 8px', borderRadius: '10px', background: '#eaf5f0', color: '#0f6644', fontWeight: 600, flexShrink: 0 }}>{item.listName}</span>
+                    <button onClick={() => onRemove(item.id)} style={{ background: 'none', border: 'none', color: '#c0b8a8', fontSize: '1rem', cursor: 'pointer', padding: '0 2px', opacity: 0 }}
+                      onMouseOver={e => e.target.style.opacity = 1} onMouseOut={e => e.target.style.opacity = 0}
+                    >×</button>
+                  </>
+                ) : (
+                  <span style={{ fontSize: '0.78rem', color: '#c0b8a8', fontStyle: 'italic' }}>⭐ star a task to pin it here</span>
+                )}
+              </div>
             )
           })}
         </div>
-      )}
-    </div>
-  )
-}
-
-
-function FocusPanelRow({ index, item, onToggleDone, onRemove, onFocus }) {
-  return (
-    <div
-      style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 20px", borderBottom: index < 2 ? "1px solid #f0f8f4" : "none", minHeight: "48px" }}
-    >
-      <span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700, fontSize: "0.65rem", color: "#0f6644", opacity: 0.7, width: "18px", flexShrink: 0 }}>{String(index + 1).padStart(2, "0")}</span>
-      {item ? (
-        <>
-          <div onClick={() => onToggleDone(item.id)} style={{ width: "18px", height: "18px", borderRadius: "50%", border: `2px solid ${item.done ? "#0f6644" : "rgba(15,102,68,0.3)"}`, background: item.done ? "#0f6644" : "transparent", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}>
-            {item.done && <span style={{ fontSize: "0.5rem", color: "#fff", fontWeight: 700 }}>✓</span>}
-          </div>
-          <span style={{ flex: 1, fontSize: "0.87rem", color: item.done ? "#9a8f7a" : "#0f1a14", textDecoration: item.done ? "line-through" : "none" }}>{item.text}</span>
-          {!item.done && onFocus && (
-            <button onClick={() => onFocus(item)} style={{ background: "none", border: "1px solid rgba(74,222,128,0.5)", borderRadius: "6px", cursor: "pointer", fontSize: "0.65rem", color: "#4ade80", padding: "3px 8px", fontFamily: "Inter, sans-serif", fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0 }}
-              onMouseOver={e => e.currentTarget.style.background = "rgba(74,222,128,0.1)"}
-              onMouseOut={e => e.currentTarget.style.background = "none"}
-            >Focus →</button>
-          )}
-          <span style={{ fontSize: "0.62rem", padding: "2px 8px", borderRadius: "10px", background: "#eaf5f0", color: "#0f6644", fontWeight: 600, flexShrink: 0 }}>{item.listName}</span>
-          <button onClick={() => onRemove(item.id)} style={{ background: "none", border: "none", color: "#c0b8a8", fontSize: "1rem", cursor: "pointer", padding: "0 2px", opacity: 0 }}
-            onMouseOver={e => e.target.style.opacity = 1} onMouseOut={e => e.target.style.opacity = 0}
-          >×</button>
-        </>
-      ) : (
-        <span style={{ fontSize: "0.78rem", color: "#c0b8a8", fontStyle: "italic" }}>⭐ star a task to pin it here</span>
       )}
     </div>
   )
@@ -751,258 +753,4 @@ function formatDate(ts) {
   const now = new Date()
   if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' })
-}
-
-// ─── FOCUS SCREEN ────────────────────────────────────────────────────────────
-function FocusScreen({ item, onDone, onExit, initialSeconds = 0 }) {
-  const [paused, setPaused] = useState(false)
-  const [seconds, setSeconds] = useState(initialSeconds)
-  const [complete, setComplete] = useState(false)
-  const [flash, setFlash] = useState(false)
-
-  useEffect(() => {
-    if (paused || complete) return
-    const id = setInterval(() => setSeconds(s => s + 1), 1000)
-    return () => clearInterval(id)
-  }, [paused, complete])
-
-  const formatTime = (s) => {
-    const m = Math.floor(s / 60)
-    const sec = s % 60
-    return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
-  }
-
-  const handleDone = () => {
-    setFlash(true)
-    setTimeout(() => { setFlash(false); setComplete(true) }, 600)
-    onDone()
-  }
-
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 1000,
-      background: flash ? '#4ade80' : complete ? '#0a0f0d' : 'linear-gradient(160deg, #0a0f0d 0%, #0d1f16 100%)',
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      transition: 'background 0.4s',
-      fontFamily: 'Inter, sans-serif',
-    }}>
-      {/* Exit button */}
-      {!complete && (
-        <button onClick={() => onExit(seconds)} style={{
-          position: 'absolute', top: '24px', right: '24px',
-          background: 'none', border: 'none', color: 'rgba(255,255,255,0.2)',
-          fontSize: '0.75rem', cursor: 'pointer', transition: 'color 0.2s',
-          fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em',
-          display: 'flex', alignItems: 'center', gap: '6px',
-        }}
-          onMouseOver={e => e.currentTarget.style.color = 'rgba(255,255,255,0.6)'}
-          onMouseOut={e => e.currentTarget.style.color = 'rgba(255,255,255,0.2)'}
-        >exit ×</button>
-      )}
-
-      {!complete ? (
-        <>
-          {/* Label */}
-          <p style={{
-            fontSize: '0.7rem', letterSpacing: '0.2em', textTransform: 'uppercase',
-            color: paused ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.4)',
-            marginBottom: '20px', transition: 'color 0.4s',
-          }}>{paused ? 'paused' : 'focusing on'}</p>
-
-          {/* Task name */}
-          <p style={{
-            fontSize: '1.3rem', fontWeight: 600, color: paused ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.9)',
-            marginBottom: '52px', maxWidth: '480px', textAlign: 'center',
-            lineHeight: 1.4, padding: '0 32px',
-            transition: 'color 0.4s',
-          }}>{item.text}</p>
-
-          {/* Breathing dot */}
-          <div style={{
-            width: '90px', height: '90px', borderRadius: '50%',
-            background: paused
-              ? 'radial-gradient(circle at 35% 35%, rgba(74,222,128,0.15), rgba(15,102,68,0.08))'
-              : 'radial-gradient(circle at 35% 35%, #6ee7a0, #0f6644)',
-            marginBottom: '48px',
-            animation: paused ? 'none' : 'breathe 4s ease-in-out infinite',
-            opacity: paused ? 0.35 : 1,
-            transition: 'opacity 0.6s, background 0.6s',
-            boxShadow: paused ? 'none' : '0 0 60px rgba(74,222,128,0.35), 0 0 120px rgba(74,222,128,0.1)',
-          }} />
-
-          {/* Timer */}
-          <p style={{
-            fontSize: '2.2rem', fontWeight: 200, color: paused ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.7)',
-            letterSpacing: '0.08em', marginBottom: '48px', fontVariantNumeric: 'tabular-nums',
-            transition: 'color 0.4s',
-          }}>{formatTime(seconds)}</p>
-
-          {/* Buttons */}
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <button onClick={() => setPaused(p => !p)} style={{
-              padding: '12px 28px', borderRadius: '10px',
-              border: '1.5px solid rgba(255,255,255,0.15)', background: 'transparent',
-              color: 'rgba(255,255,255,0.6)', fontFamily: 'Inter, sans-serif',
-              fontWeight: 500, fontSize: '0.88rem', cursor: 'pointer',
-              transition: 'all 0.2s',
-            }}
-              onMouseOver={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)'; e.currentTarget.style.color = 'rgba(255,255,255,0.9)' }}
-              onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; e.currentTarget.style.color = 'rgba(255,255,255,0.6)' }}
-            >{paused ? 'Resume' : 'Pause'}</button>
-            <button onClick={handleDone} style={{
-              padding: '12px 28px', borderRadius: '10px',
-              border: 'none', background: '#4ade80',
-              color: '#0a0f0d', fontFamily: 'Inter, sans-serif',
-              fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer',
-              transition: 'all 0.2s',
-            }}
-              onMouseOver={e => e.currentTarget.style.background = '#6ee7a0'}
-              onMouseOut={e => e.currentTarget.style.background = '#4ade80'}
-            >Done ✓</button>
-          </div>
-
-          <style>{`
-            @keyframes breathe {
-              0%, 100% { transform: scale(1); box-shadow: 0 0 40px rgba(74,222,128,0.3), 0 0 80px rgba(74,222,128,0.08); }
-              50% { transform: scale(1.2); box-shadow: 0 0 80px rgba(74,222,128,0.5), 0 0 160px rgba(74,222,128,0.15); }
-            }
-          `}</style>
-        </>
-      ) : (
-        /* Completion screen */
-        <div style={{ textAlign: 'center', padding: '0 32px' }}>
-          <div style={{
-            width: '64px', height: '64px', borderRadius: '50%',
-            background: 'radial-gradient(circle at 35% 35%, #6ee7a0, #0f6644)',
-            margin: '0 auto 32px',
-            boxShadow: '0 0 60px rgba(74,222,128,0.4), 0 0 120px rgba(74,222,128,0.15)',
-          }} />
-          <p style={{ fontSize: '3rem', fontWeight: 800, color: '#4ade80', letterSpacing: '-1px', marginBottom: '12px', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Done.</p>
-          <p style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.5)', marginBottom: '8px', maxWidth: '360px', lineHeight: 1.5 }}>{item.text}</p>
-          <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.3)', marginBottom: '48px' }}>
-            {Math.floor(seconds / 60) > 0 ? `${Math.floor(seconds / 60)} min` : `${seconds} sec`} of focused work
-          </p>
-          <button onClick={onExit} style={{
-            padding: '14px 32px', borderRadius: '10px',
-            border: 'none', background: '#0f6644',
-            color: '#fff', fontFamily: 'Inter, sans-serif',
-            fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer',
-            boxShadow: '0 4px 20px rgba(15,102,68,0.4)',
-          }}>Back to List.</button>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ─── SEARCH MODAL ─────────────────────────────────────────────────────────────
-function SearchModal({ allItems, lists, onClose, onSelectItem }) {
-  const [query, setQuery] = useState('')
-  const inputRef = React.useRef(null)
-
-  useEffect(() => {
-    inputRef.current?.focus()
-  }, [])
-
-  const results = query.trim().length < 1 ? [] : allItems.filter(item =>
-    item.text.toLowerCase().includes(query.toLowerCase())
-  ).slice(0, 8)
-
-  const getListName = (listId) => lists.find(l => l.id === listId)?.name || ''
-  const getListColor = (listId) => lists.find(l => l.id === listId)?.color || '#0f6644'
-
-  return (
-    <div
-      onClick={e => e.target === e.currentTarget && onClose()}
-      style={{
-        position: 'fixed', inset: 0, zIndex: 300,
-        background: 'rgba(17,16,8,0.5)', backdropFilter: 'blur(4px)',
-        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-        padding: '80px 24px 24px',
-      }}
-    >
-      <div style={{
-        background: '#fff', borderRadius: '16px', width: '100%', maxWidth: '520px',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.2)', border: '1.5px solid #ede8df',
-        overflow: 'hidden',
-      }}>
-        {/* Search input */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px 20px', borderBottom: results.length > 0 ? '1.5px solid #ede8df' : 'none' }}>
-          <span style={{ fontSize: '1rem', color: '#9a8f7a', flexShrink: 0 }}>🔍</span>
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Search tasks…"
-            style={{
-              flex: 1, border: 'none', outline: 'none',
-              fontFamily: 'Inter, sans-serif', fontSize: '1rem',
-              color: '#0f1a14', background: 'transparent',
-            }}
-          />
-          {query && (
-            <button onClick={() => setQuery('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9a8f7a', fontSize: '1rem', padding: '0' }}>×</button>
-          )}
-          <button onClick={onClose} style={{
-            background: '#f7f4ef', border: '1px solid #ede8df', borderRadius: '8px',
-            cursor: 'pointer', color: '#9a8f7a', fontSize: '0.75rem', padding: '4px 10px',
-            fontFamily: 'Inter, sans-serif', flexShrink: 0,
-          }}>Close</button>
-        </div>
-
-        {/* Results */}
-        {results.length > 0 && (
-          <div>
-            {results.map(item => (
-              <div
-                key={item.id}
-                onClick={() => onSelectItem(item)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '12px',
-                  padding: '12px 20px', cursor: 'pointer',
-                  borderBottom: '1px solid #f7f4ef',
-                  transition: 'background 0.1s',
-                }}
-                onMouseOver={e => e.currentTarget.style.background = '#f7f4ef'}
-                onMouseOut={e => e.currentTarget.style.background = 'transparent'}
-              >
-                <div style={{
-                  width: '16px', height: '16px', borderRadius: '50%', flexShrink: 0,
-                  border: `2px solid ${item.done ? getListColor(item.list_id) : getListColor(item.list_id) + '55'}`,
-                  background: item.done ? getListColor(item.list_id) : 'transparent',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  {item.done && <span style={{ fontSize: '0.45rem', color: '#fff', fontWeight: 700 }}>✓</span>}
-                </div>
-                <span style={{
-                  flex: 1, fontSize: '0.9rem',
-                  color: item.done ? '#9a8f7a' : '#0f1a14',
-                  textDecoration: item.done ? 'line-through' : 'none',
-                }}>{item.text}</span>
-                <span style={{
-                  fontSize: '0.62rem', padding: '2px 8px', borderRadius: '10px',
-                  background: '#eaf5f0', color: getListColor(item.list_id),
-                  fontWeight: 600, flexShrink: 0,
-                }}>{getListName(item.list_id)}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Empty state */}
-        {query.trim().length > 0 && results.length === 0 && (
-          <div style={{ padding: '32px 20px', textAlign: 'center', color: '#9a8f7a', fontSize: '0.85rem' }}>
-            No tasks found for "<strong>{query}</strong>"
-          </div>
-        )}
-
-        {/* Hint when empty */}
-        {query.trim().length === 0 && (
-          <div style={{ padding: '20px', textAlign: 'center', color: '#c0b8a8', fontSize: '0.78rem' }}>
-            Search across all your lists
-          </div>
-        )}
-      </div>
-    </div>
-  )
 }
