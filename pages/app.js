@@ -315,6 +315,7 @@ export default function App() {
               if (item) await supabase.from('items').update({ starred: false }).eq('id', itemId)
               setItems(prev => prev.map(i => i.id === itemId ? { ...i, starred: false } : i))
             }}
+            onFocus={(item) => setFocusItem(item)}
           />
 
           {/* List tabs */}
@@ -408,7 +409,6 @@ export default function App() {
                   dragSrcId={dragSrcId}
                   onDragStart={() => setDragSrcId(item.id)}
                   onDragEnd={() => setDragSrcId(null)}
-                  onFocus={() => setFocusItem(item)}
                   onDrop={async () => {
                     if (!dragSrcId || dragSrcId === item.id) return
                     const allItems = [...items]
@@ -517,7 +517,7 @@ export default function App() {
   )
 }
 
-function ItemRow({ item, listColor, onToggleDone, onToggleStar, onDelete, onTextChange, onDragStart, onDragEnd, onDrop, dragSrcId, onFocus }) {
+function ItemRow({ item, listColor, onToggleDone, onToggleStar, onDelete, onTextChange, onDragStart, onDragEnd, onDrop, dragSrcId }) {
   const [dragOver, setDragOver] = useState(false)
   const [hovered, setHovered] = useState(false)
   return (
@@ -566,12 +566,7 @@ function ItemRow({ item, listColor, onToggleDone, onToggleStar, onDelete, onText
         onMouseOut={e => e.target.style.transform = 'scale(1)'}
       >{item.starred ? '⭐' : '☆'}</button>
       <span style={{ fontSize: '0.62rem', color: '#c0b8a8', whiteSpace: 'nowrap' }}>{formatDate(item.created_at)}</span>
-      {!item.done && hovered && onFocus && (
-        <button onClick={onFocus} style={{ background: 'none', border: '1px solid rgba(74,222,128,0.4)', borderRadius: '6px', cursor: 'pointer', fontSize: '0.65rem', color: '#4ade80', padding: '3px 8px', fontFamily: 'Inter, sans-serif', fontWeight: 600, whiteSpace: 'nowrap', transition: 'all 0.15s' }}
-          onMouseOver={e => { e.currentTarget.style.background = 'rgba(74,222,128,0.1)' }}
-          onMouseOut={e => { e.currentTarget.style.background = 'none' }}
-        >Focus →</button>
-      )}
+
       <button onClick={onDelete} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: '#e0d8cc', padding: '4px', opacity: 0, transition: 'opacity 0.15s, color 0.15s' }}
         onMouseOver={e => { e.target.style.opacity = 1; e.target.style.color = '#e04e0a' }}
         onMouseOut={e => { e.target.style.opacity = 0; e.target.style.color = '#e0d8cc' }}
@@ -580,7 +575,7 @@ function ItemRow({ item, listColor, onToggleDone, onToggleStar, onDelete, onText
   )
 }
 
-function FocusPanel({ top3, items, lists, top3Open, onToggleOpen, onToggleDone, onRemove }) {
+function FocusPanel({ top3, items, lists, top3Open, onToggleOpen, onToggleDone, onRemove, onFocus }) {
   const resolvedTop3 = top3.map(ref => {
     const item = items.find(i => i.id === ref.itemId)
     return item ? { ...item, listName: ref.listName } : null
@@ -618,26 +613,51 @@ function FocusPanel({ top3, items, lists, top3Open, onToggleOpen, onToggleDone, 
           {[0, 1, 2].map(i => {
             const item = resolvedTop3[i]
             return (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', borderBottom: i < 2 ? '1px solid #f0f8f4' : 'none', minHeight: '48px' }}>
-                <span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700, fontSize: '0.65rem', color: '#0f6644', opacity: 0.7, width: '18px', flexShrink: 0 }}>{String(i + 1).padStart(2, '0')}</span>
-                {item ? (
-                  <>
-                    <div onClick={() => onToggleDone(item.id)} style={{ width: '18px', height: '18px', borderRadius: '50%', border: `2px solid ${item.done ? '#0f6644' : 'rgba(15,102,68,0.3)'}`, background: item.done ? '#0f6644' : 'transparent', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}>
-                      {item.done && <span style={{ fontSize: '0.5rem', color: '#fff', fontWeight: 700 }}>✓</span>}
-                    </div>
-                    <span style={{ flex: 1, fontSize: '0.87rem', color: item.done ? '#9a8f7a' : '#0f1a14', textDecoration: item.done ? 'line-through' : 'none' }}>{item.text}</span>
-                    <span style={{ fontSize: '0.62rem', padding: '2px 8px', borderRadius: '10px', background: '#eaf5f0', color: '#0f6644', fontWeight: 600, flexShrink: 0 }}>{item.listName}</span>
-                    <button onClick={() => onRemove(item.id)} style={{ background: 'none', border: 'none', color: '#c0b8a8', fontSize: '1rem', cursor: 'pointer', padding: '0 2px', opacity: 0 }}
-                      onMouseOver={e => e.target.style.opacity = 1} onMouseOut={e => e.target.style.opacity = 0}
-                    >×</button>
-                  </>
-                ) : (
-                  <span style={{ fontSize: '0.78rem', color: '#c0b8a8', fontStyle: 'italic' }}>⭐ star a task to pin it here</span>
-                )}
-              </div>
+              <FocusPanelRow
+                key={i}
+                index={i}
+                item={item}
+                onToggleDone={onToggleDone}
+                onRemove={onRemove}
+                onFocus={onFocus}
+              />
             )
           })}
         </div>
+      )}
+    </div>
+  )
+}
+
+
+function FocusPanelRow({ index, item, onToggleDone, onRemove, onFocus }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 20px", borderBottom: index < 2 ? "1px solid #f0f8f4" : "none", minHeight: "48px" }}
+    >
+      <span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700, fontSize: "0.65rem", color: "#0f6644", opacity: 0.7, width: "18px", flexShrink: 0 }}>{String(index + 1).padStart(2, "0")}</span>
+      {item ? (
+        <>
+          <div onClick={() => onToggleDone(item.id)} style={{ width: "18px", height: "18px", borderRadius: "50%", border: `2px solid ${item.done ? "#0f6644" : "rgba(15,102,68,0.3)"}`, background: item.done ? "#0f6644" : "transparent", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}>
+            {item.done && <span style={{ fontSize: "0.5rem", color: "#fff", fontWeight: 700 }}>✓</span>}
+          </div>
+          <span style={{ flex: 1, fontSize: "0.87rem", color: item.done ? "#9a8f7a" : "#0f1a14", textDecoration: item.done ? "line-through" : "none" }}>{item.text}</span>
+          {!item.done && hovered && onFocus && (
+            <button onClick={() => onFocus(item)} style={{ background: "none", border: "1px solid rgba(74,222,128,0.5)", borderRadius: "6px", cursor: "pointer", fontSize: "0.65rem", color: "#4ade80", padding: "3px 8px", fontFamily: "Inter, sans-serif", fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0 }}
+              onMouseOver={e => e.currentTarget.style.background = "rgba(74,222,128,0.1)"}
+              onMouseOut={e => e.currentTarget.style.background = "none"}
+            >Focus u2192</button>
+          )}
+          {(!hovered || item.done) && <span style={{ fontSize: "0.62rem", padding: "2px 8px", borderRadius: "10px", background: "#eaf5f0", color: "#0f6644", fontWeight: 600, flexShrink: 0 }}>{item.listName}</span>}
+          <button onClick={() => onRemove(item.id)} style={{ background: "none", border: "none", color: "#c0b8a8", fontSize: "1rem", cursor: "pointer", padding: "0 2px", opacity: 0 }}
+            onMouseOver={e => e.target.style.opacity = 1} onMouseOut={e => e.target.style.opacity = 0}
+          >�</button>
+        </>
+      ) : (
+        <span style={{ fontSize: "0.78rem", color: "#c0b8a8", fontStyle: "italic" }}>u2b50 star a task to pin it here</span>
       )}
     </div>
   )
@@ -759,13 +779,15 @@ function FocusScreen({ item, onDone, onExit, initialSeconds = 0 }) {
 
           {/* Breathing dot */}
           <div style={{
-            width: '80px', height: '80px', borderRadius: '50%',
-            border: `2.5px solid ${paused ? 'rgba(74,222,128,0.2)' : '#4ade80'}`,
+            width: '90px', height: '90px', borderRadius: '50%',
+            background: paused
+              ? 'radial-gradient(circle at 35% 35%, rgba(74,222,128,0.15), rgba(15,102,68,0.08))'
+              : 'radial-gradient(circle at 35% 35%, #6ee7a0, #0f6644)',
             marginBottom: '48px',
             animation: paused ? 'none' : 'breathe 4s ease-in-out infinite',
-            opacity: paused ? 0.3 : 1,
-            transition: 'opacity 0.6s, border-color 0.6s',
-            boxShadow: paused ? 'none' : '0 0 40px rgba(74,222,128,0.15)',
+            opacity: paused ? 0.35 : 1,
+            transition: 'opacity 0.6s, background 0.6s',
+            boxShadow: paused ? 'none' : '0 0 60px rgba(74,222,128,0.35), 0 0 120px rgba(74,222,128,0.1)',
           }} />
 
           {/* Timer */}
@@ -801,8 +823,8 @@ function FocusScreen({ item, onDone, onExit, initialSeconds = 0 }) {
 
           <style>{`
             @keyframes breathe {
-              0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(74,222,128,0.1); }
-              50% { transform: scale(1.25); box-shadow: 0 0 60px rgba(74,222,128,0.25); }
+              0%, 100% { transform: scale(1); box-shadow: 0 0 40px rgba(74,222,128,0.3), 0 0 80px rgba(74,222,128,0.08); }
+              50% { transform: scale(1.2); box-shadow: 0 0 80px rgba(74,222,128,0.5), 0 0 160px rgba(74,222,128,0.15); }
             }
           `}</style>
         </>
@@ -811,9 +833,9 @@ function FocusScreen({ item, onDone, onExit, initialSeconds = 0 }) {
         <div style={{ textAlign: 'center', padding: '0 32px' }}>
           <div style={{
             width: '64px', height: '64px', borderRadius: '50%',
-            border: '2.5px solid #4ade80',
+            background: 'radial-gradient(circle at 35% 35%, #6ee7a0, #0f6644)',
             margin: '0 auto 32px',
-            boxShadow: '0 0 60px rgba(74,222,128,0.3)',
+            boxShadow: '0 0 60px rgba(74,222,128,0.4), 0 0 120px rgba(74,222,128,0.15)',
           }} />
           <p style={{ fontSize: '3rem', fontWeight: 800, color: '#4ade80', letterSpacing: '-1px', marginBottom: '12px', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Done.</p>
           <p style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.5)', marginBottom: '8px', maxWidth: '360px', lineHeight: 1.5 }}>{item.text}</p>
