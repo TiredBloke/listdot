@@ -186,9 +186,8 @@ export default function Landing() {
             The key insight: decide the night before, when you're calm and honest with yourself. Not the morning, when you're already reactive.
           </p>
 
-          <div style={{
-            marginTop: '48px', display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px',
+          <div className="three-col-grid" style={{
+            marginTop: '48px', display: 'grid', gap: '16px',
           }}>
             {philosophyCards.map((card, i) => (
               <div key={i} style={{
@@ -224,7 +223,7 @@ export default function Landing() {
           </p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+        <div className="three-col-grid" style={{ display: 'grid', gap: '20px' }}>
           {rhythm.map((step, i) => (
             <div key={i} style={{
               background: '#fff',
@@ -442,6 +441,18 @@ export default function Landing() {
         @keyframes fadeUp {
           from { opacity: 0; transform: translateY(24px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        .three-col-grid {
+          grid-template-columns: repeat(3, 1fr);
+        }
+        @media (max-width: 768px) {
+          .three-col-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+        html, body {
+          overflow-x: hidden;
+          max-width: 100%;
         }
       `}</style>
     </>
