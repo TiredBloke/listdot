@@ -18,6 +18,7 @@ export default function App() {
   const [lists, setLists] = useState([])
   const [activeList, setActiveList] = useState(null)
   const [items, setItems] = useState([])
+  const [allItems, setAllItems] = useState([])
   const [top3, setTop3] = useState([])
   const [filter, setFilter] = useState('all')
   const [newItemText, setNewItemText] = useState('')
@@ -54,11 +55,13 @@ export default function App() {
 
   const loadData = async () => {
     setLoading(true)
-    const [{ data: prof }, { data: listsData }] = await Promise.all([
+    const [{ data: prof }, { data: listsData }, { data: allItemsData }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase.from('lists').select('*').eq('user_id', user.id).order('created_at'),
+      supabase.from('items').select('*').eq('user_id', user.id),
     ])
     setProfile(prof)
+    setAllItems(allItemsData || [])
     if (listsData && listsData.length > 0) {
       setLists(listsData)
       setActiveList(listsData[0])
@@ -113,7 +116,7 @@ export default function App() {
       list_id: activeList.id, user_id: user.id,
       text: newItemText.trim(), done: false, starred: false, position: pos
     }).select().single()
-    if (data) setItems(prev => [...prev, data])
+    if (data) { setItems(prev => [...prev, data]); setAllItems(prev => [...prev, data]) }
     setNewItemText('')
   }
 
@@ -122,6 +125,7 @@ export default function App() {
     if (!item) return
     const updated = { ...item, done: !item.done }
     setItems(prev => prev.map(i => i.id === id ? updated : i))
+    setAllItems(prev => prev.map(i => i.id === id ? updated : i))
     await supabase.from('items').update({ done: updated.done }).eq('id', id)
   }
 
@@ -285,7 +289,7 @@ export default function App() {
         </div>
 
         {/* MAIN CONTENT */}
-        <div style={{ maxWidth: '600px', margin: '0 auto', padding: '80px 16px 100px' }}>
+        <div style={{ maxWidth: '860px', margin: '0 auto', padding: '80px 24px 100px' }}>
 
           {/* Header */}
           <div style={{ marginBottom: '28px' }}>
@@ -301,7 +305,7 @@ export default function App() {
 
           {/* Today's Focus */}
           <FocusPanel
-            top3={top3} items={items} lists={lists}
+            top3={top3} items={allItems} lists={lists}
             top3Open={top3Open}
             onToggleOpen={async () => {
               const next = !top3Open; setTop3Open(next)
@@ -645,19 +649,19 @@ function FocusPanelRow({ index, item, onToggleDone, onRemove, onFocus }) {
             {item.done && <span style={{ fontSize: "0.5rem", color: "#fff", fontWeight: 700 }}>✓</span>}
           </div>
           <span style={{ flex: 1, fontSize: "0.87rem", color: item.done ? "#9a8f7a" : "#0f1a14", textDecoration: item.done ? "line-through" : "none" }}>{item.text}</span>
-          {!item.done && hovered && onFocus && (
+          {!item.done && onFocus && (
             <button onClick={() => onFocus(item)} style={{ background: "none", border: "1px solid rgba(74,222,128,0.5)", borderRadius: "6px", cursor: "pointer", fontSize: "0.65rem", color: "#4ade80", padding: "3px 8px", fontFamily: "Inter, sans-serif", fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0 }}
               onMouseOver={e => e.currentTarget.style.background = "rgba(74,222,128,0.1)"}
               onMouseOut={e => e.currentTarget.style.background = "none"}
-            >Focus u2192</button>
+            >Focus →</button>
           )}
-          {(!hovered || item.done) && <span style={{ fontSize: "0.62rem", padding: "2px 8px", borderRadius: "10px", background: "#eaf5f0", color: "#0f6644", fontWeight: 600, flexShrink: 0 }}>{item.listName}</span>}
+          {true {(!hovered || item.done) && <span{(!hovered || item.done) && <span <span style={{ fontSize: "0.62rem", padding: "2px 8px", borderRadius: "10px", background: "#eaf5f0", color: "#0f6644", fontWeight: 600, flexShrink: 0 }}>{item.listName}</span>}
           <button onClick={() => onRemove(item.id)} style={{ background: "none", border: "none", color: "#c0b8a8", fontSize: "1rem", cursor: "pointer", padding: "0 2px", opacity: 0 }}
             onMouseOver={e => e.target.style.opacity = 1} onMouseOut={e => e.target.style.opacity = 0}
           >×</button>
         </>
       ) : (
-        <span style={{ fontSize: "0.78rem", color: "#c0b8a8", fontStyle: "italic" }}>u2b50 star a task to pin it here</span>
+        <span style={{ fontSize: "0.78rem", color: "#c0b8a8", fontStyle: "italic" }}>⭐ star a task to pin it here</span>
       )}
     </div>
   )
