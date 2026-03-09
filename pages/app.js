@@ -943,7 +943,11 @@ function SearchModal({ allItems, lists, onClose, onSelectItem }) {
           {query && (
             <button onClick={() => setQuery('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9a8f7a', fontSize: '1rem', padding: '0' }}>×</button>
           )}
-          <kbd style={{ fontSize: '0.65rem', color: '#9a8f7a', background: '#f7f4ef', border: '1px solid #ede8df', borderRadius: '4px', padding: '2px 6px', fontFamily: 'Inter, sans-serif' }}>esc</kbd>
+          <button onClick={onClose} style={{
+            background: '#f7f4ef', border: '1px solid #ede8df', borderRadius: '8px',
+            cursor: 'pointer', color: '#9a8f7a', fontSize: '0.75rem', padding: '4px 10px',
+            fontFamily: 'Inter, sans-serif', flexShrink: 0,
+          }}>Close</button>
         </div>
 
         {/* Results */}
