@@ -30,6 +30,8 @@ export default function App() {
   const [top3Open, setTop3Open] = useState(true)
   const [upgradingLoading, setUpgradingLoading] = useState(false)
   const [successBanner, setSuccessBanner] = useState(false)
+  const [focusItem, setFocusItem] = useState(null)
+  const [focusTimers, setFocusTimers] = useState({})
 
   // Redirect if not logged in
   useEffect(() => {
@@ -406,6 +408,7 @@ export default function App() {
                   dragSrcId={dragSrcId}
                   onDragStart={() => setDragSrcId(item.id)}
                   onDragEnd={() => setDragSrcId(null)}
+                  onFocus={() => setFocusItem(item)}
                   onDrop={async () => {
                     if (!dragSrcId || dragSrcId === item.id) return
                     const allItems = [...items]
@@ -495,12 +498,28 @@ export default function App() {
           </div>
         </Modal>
       )}
+      {focusItem && (
+        <FocusScreen
+          item={focusItem}
+          initialSeconds={focusTimers[focusItem.id] || 0}
+          onDone={() => {
+            setFocusTimers(t => { const n = {...t}; delete n[focusItem.id]; return n })
+            toggleDone(focusItem.id)
+            setFocusItem(null)
+          }}
+          onExit={(elapsed) => {
+            setFocusTimers(t => ({ ...t, [focusItem.id]: elapsed }))
+            setFocusItem(null)
+          }}
+        />
+      )}
     </>
   )
 }
 
-function ItemRow({ item, listColor, onToggleDone, onToggleStar, onDelete, onTextChange, onDragStart, onDragEnd, onDrop, dragSrcId }) {
+function ItemRow({ item, listColor, onToggleDone, onToggleStar, onDelete, onTextChange, onDragStart, onDragEnd, onDrop, dragSrcId, onFocus }) {
   const [dragOver, setDragOver] = useState(false)
+  const [hovered, setHovered] = useState(false)
   return (
     <div
       draggable
@@ -508,6 +527,8 @@ function ItemRow({ item, listColor, onToggleDone, onToggleStar, onDelete, onText
       onDragOver={e => { e.preventDefault(); setDragOver(true) }}
       onDragLeave={() => setDragOver(false)}
       onDrop={() => { setDragOver(false); onDrop() }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         display: 'flex', alignItems: 'center', gap: '10px',
         padding: '11px 16px', borderBottom: '1px solid #f0ece4',
@@ -545,6 +566,12 @@ function ItemRow({ item, listColor, onToggleDone, onToggleStar, onDelete, onText
         onMouseOut={e => e.target.style.transform = 'scale(1)'}
       >{item.starred ? '⭐' : '☆'}</button>
       <span style={{ fontSize: '0.62rem', color: '#c0b8a8', whiteSpace: 'nowrap' }}>{formatDate(item.created_at)}</span>
+      {!item.done && hovered && onFocus && (
+        <button onClick={onFocus} style={{ background: 'none', border: '1px solid rgba(74,222,128,0.4)', borderRadius: '6px', cursor: 'pointer', fontSize: '0.65rem', color: '#4ade80', padding: '3px 8px', fontFamily: 'Inter, sans-serif', fontWeight: 600, whiteSpace: 'nowrap', transition: 'all 0.15s' }}
+          onMouseOver={e => { e.currentTarget.style.background = 'rgba(74,222,128,0.1)' }}
+          onMouseOut={e => { e.currentTarget.style.background = 'none' }}
+        >Focus →</button>
+      )}
       <button onClick={onDelete} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: '#e0d8cc', padding: '4px', opacity: 0, transition: 'opacity 0.15s, color 0.15s' }}
         onMouseOver={e => { e.target.style.opacity = 1; e.target.style.color = '#e04e0a' }}
         onMouseOut={e => { e.target.style.opacity = 0; e.target.style.color = '#e0d8cc' }}
@@ -664,4 +691,144 @@ function formatDate(ts) {
   const now = new Date()
   if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' })
+}
+
+// ─── FOCUS SCREEN ────────────────────────────────────────────────────────────
+function FocusScreen({ item, onDone, onExit, initialSeconds = 0 }) {
+  const [paused, setPaused] = useState(false)
+  const [seconds, setSeconds] = useState(initialSeconds)
+  const [complete, setComplete] = useState(false)
+  const [flash, setFlash] = useState(false)
+
+  useEffect(() => {
+    if (paused || complete) return
+    const id = setInterval(() => setSeconds(s => s + 1), 1000)
+    return () => clearInterval(id)
+  }, [paused, complete])
+
+  const formatTime = (s) => {
+    const m = Math.floor(s / 60)
+    const sec = s % 60
+    return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+  }
+
+  const handleDone = () => {
+    setFlash(true)
+    setTimeout(() => { setFlash(false); setComplete(true) }, 600)
+    onDone()
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      background: flash ? '#4ade80' : complete ? '#0a0f0d' : 'linear-gradient(160deg, #0a0f0d 0%, #0d1f16 100%)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      transition: 'background 0.4s',
+      fontFamily: 'Inter, sans-serif',
+    }}>
+      {/* Exit button */}
+      {!complete && (
+        <button onClick={() => onExit(seconds)} style={{
+          position: 'absolute', top: '24px', right: '24px',
+          background: 'none', border: 'none', color: 'rgba(255,255,255,0.2)',
+          fontSize: '0.75rem', cursor: 'pointer', transition: 'color 0.2s',
+          fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em',
+          display: 'flex', alignItems: 'center', gap: '6px',
+        }}
+          onMouseOver={e => e.currentTarget.style.color = 'rgba(255,255,255,0.6)'}
+          onMouseOut={e => e.currentTarget.style.color = 'rgba(255,255,255,0.2)'}
+        >exit ×</button>
+      )}
+
+      {!complete ? (
+        <>
+          {/* Label */}
+          <p style={{
+            fontSize: '0.7rem', letterSpacing: '0.2em', textTransform: 'uppercase',
+            color: paused ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.4)',
+            marginBottom: '20px', transition: 'color 0.4s',
+          }}>{paused ? 'paused' : 'focusing on'}</p>
+
+          {/* Task name */}
+          <p style={{
+            fontSize: '1.3rem', fontWeight: 600, color: paused ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.9)',
+            marginBottom: '52px', maxWidth: '480px', textAlign: 'center',
+            lineHeight: 1.4, padding: '0 32px',
+            transition: 'color 0.4s',
+          }}>{item.text}</p>
+
+          {/* Breathing dot */}
+          <div style={{
+            width: '80px', height: '80px', borderRadius: '50%',
+            border: `2.5px solid ${paused ? 'rgba(74,222,128,0.2)' : '#4ade80'}`,
+            marginBottom: '48px',
+            animation: paused ? 'none' : 'breathe 4s ease-in-out infinite',
+            opacity: paused ? 0.3 : 1,
+            transition: 'opacity 0.6s, border-color 0.6s',
+            boxShadow: paused ? 'none' : '0 0 40px rgba(74,222,128,0.15)',
+          }} />
+
+          {/* Timer */}
+          <p style={{
+            fontSize: '2.2rem', fontWeight: 200, color: paused ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.7)',
+            letterSpacing: '0.08em', marginBottom: '48px', fontVariantNumeric: 'tabular-nums',
+            transition: 'color 0.4s',
+          }}>{formatTime(seconds)}</p>
+
+          {/* Buttons */}
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button onClick={() => setPaused(p => !p)} style={{
+              padding: '12px 28px', borderRadius: '10px',
+              border: '1.5px solid rgba(255,255,255,0.15)', background: 'transparent',
+              color: 'rgba(255,255,255,0.6)', fontFamily: 'Inter, sans-serif',
+              fontWeight: 500, fontSize: '0.88rem', cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+              onMouseOver={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)'; e.currentTarget.style.color = 'rgba(255,255,255,0.9)' }}
+              onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; e.currentTarget.style.color = 'rgba(255,255,255,0.6)' }}
+            >{paused ? 'Resume' : 'Pause'}</button>
+            <button onClick={handleDone} style={{
+              padding: '12px 28px', borderRadius: '10px',
+              border: 'none', background: '#4ade80',
+              color: '#0a0f0d', fontFamily: 'Inter, sans-serif',
+              fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+              onMouseOver={e => e.currentTarget.style.background = '#6ee7a0'}
+              onMouseOut={e => e.currentTarget.style.background = '#4ade80'}
+            >Done ✓</button>
+          </div>
+
+          <style>{`
+            @keyframes breathe {
+              0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(74,222,128,0.1); }
+              50% { transform: scale(1.25); box-shadow: 0 0 60px rgba(74,222,128,0.25); }
+            }
+          `}</style>
+        </>
+      ) : (
+        /* Completion screen */
+        <div style={{ textAlign: 'center', padding: '0 32px' }}>
+          <div style={{
+            width: '64px', height: '64px', borderRadius: '50%',
+            border: '2.5px solid #4ade80',
+            margin: '0 auto 32px',
+            boxShadow: '0 0 60px rgba(74,222,128,0.3)',
+          }} />
+          <p style={{ fontSize: '3rem', fontWeight: 800, color: '#4ade80', letterSpacing: '-1px', marginBottom: '12px', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Done.</p>
+          <p style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.5)', marginBottom: '8px', maxWidth: '360px', lineHeight: 1.5 }}>{item.text}</p>
+          <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.3)', marginBottom: '48px' }}>
+            {Math.floor(seconds / 60) > 0 ? `${Math.floor(seconds / 60)} min` : `${seconds} sec`} of focused work
+          </p>
+          <button onClick={onExit} style={{
+            padding: '14px 32px', borderRadius: '10px',
+            border: 'none', background: '#0f6644',
+            color: '#fff', fontFamily: 'Inter, sans-serif',
+            fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer',
+            boxShadow: '0 4px 20px rgba(15,102,68,0.4)',
+          }}>Back to List.</button>
+        </div>
+      )}
+    </div>
+  )
 }
