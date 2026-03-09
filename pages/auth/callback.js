@@ -8,21 +8,30 @@ export default function AuthCallback() {
 
   useEffect(() => {
     const handleCallback = async () => {
-      const { data, error } = await supabase.auth.exchangeCodeForSession(
-        window.location.href
-      )
-      if (error) {
-        console.error('Auth callback error:', error)
+      try {
+        const code = new URLSearchParams(window.location.search).get('code')
+        
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code)
+          if (error) {
+            console.error('Auth callback error:', error)
+            router.push('/login')
+            return
+          }
+        }
+
+        const next = router.query.next || '/app'
+        router.push(next)
+      } catch (err) {
+        console.error('Callback error:', err)
         router.push('/login')
-        return
       }
-      // Redirect to wherever they were going, or /app by default
-      const next = router.query.next || '/app'
-      router.push(next)
     }
 
-    handleCallback()
-  }, [])
+    if (router.isReady) {
+      handleCallback()
+    }
+  }, [router.isReady])
 
   return (
     <div style={{
