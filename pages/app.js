@@ -635,11 +635,8 @@ function FocusPanel({ top3, items, lists, top3Open, onToggleOpen, onToggleDone, 
 
 
 function FocusPanelRow({ index, item, onToggleDone, onRemove, onFocus }) {
-  const [hovered, setHovered] = useState(false)
   return (
     <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
       style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 20px", borderBottom: index < 2 ? "1px solid #f0f8f4" : "none", minHeight: "48px" }}
     >
       <span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700, fontSize: "0.65rem", color: "#0f6644", opacity: 0.7, width: "18px", flexShrink: 0 }}>{String(index + 1).padStart(2, "0")}</span>
@@ -655,7 +652,7 @@ function FocusPanelRow({ index, item, onToggleDone, onRemove, onFocus }) {
               onMouseOut={e => e.currentTarget.style.background = "none"}
             >Focus →</button>
           )}
-          {true {(!hovered || item.done) && <span{(!hovered || item.done) && <span <span style={{ fontSize: "0.62rem", padding: "2px 8px", borderRadius: "10px", background: "#eaf5f0", color: "#0f6644", fontWeight: 600, flexShrink: 0 }}>{item.listName}</span>}
+          <span style={{ fontSize: "0.62rem", padding: "2px 8px", borderRadius: "10px", background: "#eaf5f0", color: "#0f6644", fontWeight: 600, flexShrink: 0 }}>{item.listName}</span>
           <button onClick={() => onRemove(item.id)} style={{ background: "none", border: "none", color: "#c0b8a8", fontSize: "1rem", cursor: "pointer", padding: "0 2px", opacity: 0 }}
             onMouseOver={e => e.target.style.opacity = 1} onMouseOut={e => e.target.style.opacity = 0}
           >×</button>
