@@ -35,7 +35,7 @@ export default function Signup() {
   const handleGoogle = async () => {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback?next=/app` }
+      options: { redirectTo: 'https://listdot.app/app' }
     })
   }
 
