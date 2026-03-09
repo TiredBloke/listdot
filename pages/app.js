@@ -654,7 +654,7 @@ function FocusPanelRow({ index, item, onToggleDone, onRemove, onFocus }) {
           {(!hovered || item.done) && <span style={{ fontSize: "0.62rem", padding: "2px 8px", borderRadius: "10px", background: "#eaf5f0", color: "#0f6644", fontWeight: 600, flexShrink: 0 }}>{item.listName}</span>}
           <button onClick={() => onRemove(item.id)} style={{ background: "none", border: "none", color: "#c0b8a8", fontSize: "1rem", cursor: "pointer", padding: "0 2px", opacity: 0 }}
             onMouseOver={e => e.target.style.opacity = 1} onMouseOut={e => e.target.style.opacity = 0}
-          >×</button>
+          >Ã—</button>
         </>
       ) : (
         <span style={{ fontSize: "0.78rem", color: "#c0b8a8", fontStyle: "italic" }}>u2b50 star a task to pin it here</span>
