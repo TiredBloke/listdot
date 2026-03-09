@@ -187,13 +187,13 @@ export default function Landing() {
           </p>
 
           <div style={{
-            marginTop: '48px', display: 'flex', gap: '16px',
-            justifyContent: 'center', flexWrap: 'wrap',
+            marginTop: '48px', display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px',
           }}>
             {philosophyCards.map((card, i) => (
               <div key={i} style={{
                 background: '#1a2e20', borderRadius: '14px', padding: '24px',
-                border: '1px solid #2a4030', textAlign: 'left', maxWidth: '280px',
+                border: '1px solid #2a4030', textAlign: 'left',
               }}>
                 <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#3d7a5a', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '10px', fontFamily: 'Inter, sans-serif' }}>{card.era}</div>
                 <p style={{ fontSize: '0.85rem', color: '#7ab898', lineHeight: 1.65, marginBottom: '16px', fontFamily: 'Inter, sans-serif', fontStyle: 'italic' }}>
@@ -339,7 +339,7 @@ export default function Landing() {
 
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
             gap: '20px', maxWidth: '680px', margin: '0 auto',
           }}>
             {/* Free */}
