@@ -224,29 +224,28 @@ export default function Landing() {
           </p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
           {rhythm.map((step, i) => (
             <div key={i} style={{
-              background: step.dark ? '#0f1a14' : '#fff',
+              background: '#fff',
               borderRadius: '16px', padding: '32px',
-              border: `1.5px solid ${step.dark ? '#2a4030' : '#ede8df'}`,
-              boxShadow: step.dark ? '0 8px 32px rgba(0,0,0,0.2)' : '0 2px 12px rgba(0,0,0,0.05)',
-              position: 'relative', overflow: 'hidden',
+              border: '1.5px solid #ede8df',
+              borderLeft: '4px solid #0f6644',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.05)',
             }}>
               <div style={{
                 fontSize: '0.65rem', fontWeight: 700,
-                color: step.dark ? '#3d7a5a' : '#9a8f7a',
+                color: '#9a8f7a',
                 letterSpacing: '0.14em', textTransform: 'uppercase',
                 fontFamily: 'Inter, sans-serif', marginBottom: '16px',
               }}>{step.time}</div>
               <div style={{ fontSize: '1.8rem', marginBottom: '12px' }}>{step.icon}</div>
               <h3 style={{
                 fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800,
-                fontSize: '1.2rem',
-                color: step.dark ? '#fff' : '#0f1a14',
+                fontSize: '1.2rem', color: '#0f1a14',
                 marginBottom: '10px', letterSpacing: '-0.3px',
               }}>{step.title}</h3>
-              <p style={{ fontSize: '0.85rem', color: step.dark ? '#5a8a70' : '#4a4235', lineHeight: 1.65 }}>{step.desc}</p>
+              <p style={{ fontSize: '0.85rem', color: '#4a4235', lineHeight: 1.65 }}>{step.desc}</p>
             </div>
           ))}
         </div>
@@ -318,48 +317,7 @@ export default function Landing() {
         `}</style>
       </section>
 
-      {/* FEATURES */}
-      <section style={{ padding: '100px 24px', maxWidth: '960px', margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: '64px' }}>
-          <h2 style={{
-            fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800,
-            fontSize: 'clamp(2rem, 4vw, 2.8rem)',
-            color: '#0f1a14', letterSpacing: '-1px', marginBottom: '16px',
-          }}>
-            Everything your notebook had.<br />
-            <span style={{ color: '#0f6644' }}>Plus what it was missing.</span>
-          </h2>
-          <p style={{ fontSize: '1rem', color: '#4a4235', maxWidth: '440px', margin: '0 auto', lineHeight: 1.7 }}>
-            Built for people who actually write lists, not for productivity influencers.
-          </p>
-        </div>
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-          gap: '20px',
-        }}>
-          {features.map((f, i) => (
-            <div key={i} style={{
-              background: '#fff', borderRadius: '16px', padding: '28px',
-              border: '1.5px solid #ede8df',
-              boxShadow: '0 2px 12px rgba(0,0,0,0.05)',
-            }}>
-              <div style={{
-                width: '44px', height: '44px', borderRadius: '12px',
-                background: f.bg, display: 'flex', alignItems: 'center',
-                justifyContent: 'center', fontSize: '1.3rem', marginBottom: '16px',
-              }}>{f.icon}</div>
-              <h3 style={{
-                fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700,
-                fontSize: '1rem', color: '#0f1a14', marginBottom: '8px',
-                letterSpacing: '-0.3px',
-              }}>{f.title}</h3>
-              <p style={{ fontSize: '0.85rem', color: '#4a4235', lineHeight: 1.6 }}>{f.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
 
       {/* PRICING */}
       <section id="pricing" style={{
