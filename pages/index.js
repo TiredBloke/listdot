@@ -339,7 +339,7 @@ export default function Landing() {
 
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gridTemplateColumns: 'repeat(3, 1fr)',
             gap: '20px', maxWidth: '680px', margin: '0 auto',
           }}>
             {/* Free */}
