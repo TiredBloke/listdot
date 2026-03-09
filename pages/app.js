@@ -1,5 +1,5 @@
 import Head from 'next/head'
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useSupabaseClient, useUser, useSessionContext } from '@supabase/auth-helpers-react'
 import { useRouter } from 'next/router'
 import { Logo } from '../components/Logo'
@@ -32,6 +32,8 @@ export default function App() {
   const [upgradingLoading, setUpgradingLoading] = useState(false)
   const [successBanner, setSuccessBanner] = useState(false)
   const [focusItem, setFocusItem] = useState(null)
+  const [showSearch, setShowSearch] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const [focusTimers, setFocusTimers] = useState({})
 
   // Redirect if not logged in
@@ -46,6 +48,19 @@ export default function App() {
       setTimeout(() => setSuccessBanner(false), 5000)
     }
   }, [router.query])
+
+  // Cmd/Ctrl+K to open search
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setShowSearch(s => !s)
+      }
+      if (e.key === 'Escape') setShowSearch(false)
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
 
   // Load profile + lists
   useEffect(() => {
@@ -273,6 +288,16 @@ export default function App() {
         }}>
           <Logo size="sm" />
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button onClick={() => setShowSearch(s => !s)} style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: '#9a8f7a', fontSize: '1.1rem', padding: '4px 8px',
+              borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px',
+              transition: 'color 0.2s',
+            }}
+              onMouseOver={e => e.currentTarget.style.color = '#0f6644'}
+              onMouseOut={e => e.currentTarget.style.color = '#9a8f7a'}
+              title="Search (Ctrl+K)"
+            >🔍</button>
             {!isPro && (
               <button onClick={() => setShowUpgrade(true)} style={{
                 fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', fontWeight: 600,
@@ -502,6 +527,20 @@ export default function App() {
           </div>
         </Modal>
       )}
+      {showSearch && (
+        <SearchModal
+          allItems={allItems}
+          lists={lists}
+          onClose={() => { setShowSearch(false); setSearchQuery('') }}
+          onSelectItem={(item) => {
+            const list = lists.find(l => l.id === item.list_id)
+            if (list) setActiveList(list)
+            setShowSearch(false)
+            setSearchQuery('')
+          }}
+        />
+      )}
+
       {focusItem && (
         <FocusScreen
           item={focusItem}
@@ -852,6 +891,114 @@ function FocusScreen({ item, onDone, onExit, initialSeconds = 0 }) {
           }}>Back to List.</button>
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── SEARCH MODAL ─────────────────────────────────────────────────────────────
+function SearchModal({ allItems, lists, onClose, onSelectItem }) {
+  const [query, setQuery] = useState('')
+  const inputRef = React.useRef(null)
+
+  useEffect(() => {
+    inputRef.current?.focus()
+  }, [])
+
+  const results = query.trim().length < 1 ? [] : allItems.filter(item =>
+    item.text.toLowerCase().includes(query.toLowerCase())
+  ).slice(0, 8)
+
+  const getListName = (listId) => lists.find(l => l.id === listId)?.name || ''
+  const getListColor = (listId) => lists.find(l => l.id === listId)?.color || '#0f6644'
+
+  return (
+    <div
+      onClick={e => e.target === e.currentTarget && onClose()}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 300,
+        background: 'rgba(17,16,8,0.5)', backdropFilter: 'blur(4px)',
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+        padding: '80px 24px 24px',
+      }}
+    >
+      <div style={{
+        background: '#fff', borderRadius: '16px', width: '100%', maxWidth: '520px',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.2)', border: '1.5px solid #ede8df',
+        overflow: 'hidden',
+      }}>
+        {/* Search input */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px 20px', borderBottom: results.length > 0 ? '1.5px solid #ede8df' : 'none' }}>
+          <span style={{ fontSize: '1rem', color: '#9a8f7a', flexShrink: 0 }}>🔍</span>
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search tasks…"
+            style={{
+              flex: 1, border: 'none', outline: 'none',
+              fontFamily: 'Inter, sans-serif', fontSize: '1rem',
+              color: '#0f1a14', background: 'transparent',
+            }}
+          />
+          {query && (
+            <button onClick={() => setQuery('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9a8f7a', fontSize: '1rem', padding: '0' }}>×</button>
+          )}
+          <kbd style={{ fontSize: '0.65rem', color: '#9a8f7a', background: '#f7f4ef', border: '1px solid #ede8df', borderRadius: '4px', padding: '2px 6px', fontFamily: 'Inter, sans-serif' }}>esc</kbd>
+        </div>
+
+        {/* Results */}
+        {results.length > 0 && (
+          <div>
+            {results.map(item => (
+              <div
+                key={item.id}
+                onClick={() => onSelectItem(item)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '12px',
+                  padding: '12px 20px', cursor: 'pointer',
+                  borderBottom: '1px solid #f7f4ef',
+                  transition: 'background 0.1s',
+                }}
+                onMouseOver={e => e.currentTarget.style.background = '#f7f4ef'}
+                onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <div style={{
+                  width: '16px', height: '16px', borderRadius: '50%', flexShrink: 0,
+                  border: `2px solid ${item.done ? getListColor(item.list_id) : getListColor(item.list_id) + '55'}`,
+                  background: item.done ? getListColor(item.list_id) : 'transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {item.done && <span style={{ fontSize: '0.45rem', color: '#fff', fontWeight: 700 }}>✓</span>}
+                </div>
+                <span style={{
+                  flex: 1, fontSize: '0.9rem',
+                  color: item.done ? '#9a8f7a' : '#0f1a14',
+                  textDecoration: item.done ? 'line-through' : 'none',
+                }}>{item.text}</span>
+                <span style={{
+                  fontSize: '0.62rem', padding: '2px 8px', borderRadius: '10px',
+                  background: '#eaf5f0', color: getListColor(item.list_id),
+                  fontWeight: 600, flexShrink: 0,
+                }}>{getListName(item.list_id)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Empty state */}
+        {query.trim().length > 0 && results.length === 0 && (
+          <div style={{ padding: '32px 20px', textAlign: 'center', color: '#9a8f7a', fontSize: '0.85rem' }}>
+            No tasks found for "<strong>{query}</strong>"
+          </div>
+        )}
+
+        {/* Hint when empty */}
+        {query.trim().length === 0 && (
+          <div style={{ padding: '20px', textAlign: 'center', color: '#c0b8a8', fontSize: '0.78rem' }}>
+            Search across all your lists
+          </div>
+        )}
+      </div>
     </div>
   )
 }
