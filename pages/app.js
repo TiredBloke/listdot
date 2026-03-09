@@ -121,7 +121,7 @@ export default function App() {
   }
 
   const toggleDone = async (id) => {
-    const item = items.find(i => i.id === id)
+    const item = allItems.find(i => i.id === id) || items.find(i => i.id === id)
     if (!item) return
     const updated = { ...item, done: !item.done }
     setItems(prev => prev.map(i => i.id === id ? updated : i))
@@ -139,7 +139,7 @@ export default function App() {
     let newTop3 = [...top3]
     if (updated.starred) {
       if (!newTop3.find(r => r.itemId === id)) {
-        if (newTop3.length >= 3) newTop3.shift()
+        if (newTop3.length >= 5) newTop3.shift()
         newTop3.push({ itemId: id, listId: activeList.id, listName: activeList.name })
       }
     } else {
@@ -610,11 +610,11 @@ function FocusPanel({ top3, items, lists, top3Open, onToggleOpen, onToggleDone, 
               <div style={{ height: '100%', background: 'linear-gradient(90deg, #0f6644, #2db87a)', borderRadius: '4px', width: pct + '%', transition: 'width 0.5s cubic-bezier(0.4,0,0.2,1)' }} />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', paddingBottom: '10px', borderBottom: '1.5px solid #eaf5f0' }}>
-              <span style={{ fontSize: '0.68rem', color: '#0f6644', fontWeight: 600 }}>{doneCount} of {resolvedTop3.length} complete{resolvedTop3.length < 3 ? ` · ${3 - resolvedTop3.length} slots free` : ''}</span>
+              <span style={{ fontSize: '0.68rem', color: '#0f6644', fontWeight: 600 }}>{doneCount} of {resolvedTop3.length} complete{resolvedTop3.length < 5 ? ` · ${5 - resolvedTop3.length} slots free` : ''}</span>
               <span style={{ fontSize: '0.65rem', color: '#9a8f7a' }}>Star tasks to add them here</span>
             </div>
           </div>
-          {[0, 1, 2].map(i => {
+          {[0, 1, 2, 3, 4].map(i => {
             const item = resolvedTop3[i]
             return (
               <FocusPanelRow
