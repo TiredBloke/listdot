@@ -600,9 +600,14 @@ export default function App() {
         <FocusScreen
           item={focusItem}
           initialSeconds={focusTimers[focusItem.id] || 0}
-          onDone={() => {
+          onDone={async (elapsed) => {
             setFocusTimers(t => { const n = {...t}; delete n[focusItem.id]; return n })
-            toggleDone(focusItem.id)
+            const id = focusItem.id
+            // Save focus_duration alongside marking done
+            const updated = { done: true, focus_duration: elapsed }
+            setItems(prev => prev.map(i => i.id === id ? { ...i, ...updated } : i))
+            setAllItems(prev => prev.map(i => i.id === id ? { ...i, ...updated } : i))
+            await supabase.from('items').update(updated).eq('id', id)
             setFocusItem(null)
           }}
           onExit={(elapsed) => {
@@ -663,6 +668,11 @@ function ItemRow({ item, listColor, onToggleDone, onToggleStar, onDelete, onText
         onMouseOver={e => e.target.style.transform = 'scale(1.2)'}
         onMouseOut={e => e.target.style.transform = 'scale(1)'}
       >{item.starred ? '⭐' : '☆'}</button>
+      {item.done && item.focus_duration > 0 && (
+        <span style={{ fontSize: '0.6rem', color: '#0f6644', background: '#eaf5f0', border: '1px solid rgba(15,102,68,0.2)', borderRadius: '8px', padding: '2px 7px', whiteSpace: 'nowrap', fontWeight: 600 }}>
+          ⏱ {item.focus_duration < 60 ? `${item.focus_duration}s` : `${Math.floor(item.focus_duration / 60)}m`}
+        </span>
+      )}
       <span style={{ fontSize: '0.62rem', color: '#c0b8a8', whiteSpace: 'nowrap' }}>{formatDate(item.created_at)}</span>
 
       <button onClick={onDelete} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: '#e0d8cc', padding: '4px', opacity: 0, transition: 'opacity 0.15s, color 0.15s' }}
@@ -881,9 +891,9 @@ function FocusScreen({ item, onDone, onExit, initialSeconds = 0 }) {
 
   const handleDone = () => {
     try { localStorage.removeItem(STORAGE_KEY) } catch {}
+    onDone(seconds)
     setFlash(true)
     setTimeout(() => { setFlash(false); setComplete(true) }, 600)
-    onDone()
   }
 
   return (
