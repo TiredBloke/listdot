@@ -64,8 +64,11 @@ export default function App() {
   }, [])
 
   // Load profile + lists
+  const hasLoadedRef = React.useRef(false)
   useEffect(() => {
     if (!user) return
+    if (hasLoadedRef.current) return  // prevent re-load on auth token refresh
+    hasLoadedRef.current = true
     loadData()
   }, [user])
 
