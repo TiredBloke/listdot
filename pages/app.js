@@ -38,9 +38,16 @@ export default function App() {
   const [focusTimers, setFocusTimers] = useState({})
 
   // Redirect if not logged in
+  // Only redirect if still no user after a grace period — prevents spurious
+  // logouts from token refresh events briefly setting user to null
   useEffect(() => {
-    if (!sessionLoading && user === null) router.push(`/login?redirect=${encodeURIComponent(router.asPath)}`)
-  }, [user, router, sessionLoading])
+    if (sessionLoading) return
+    if (user !== null) return
+    const timer = setTimeout(() => {
+      if (!user) router.push(`/login?redirect=${encodeURIComponent(router.asPath)}`)
+    }, 2000)
+    return () => clearTimeout(timer)
+  }, [user, sessionLoading])
 
   // Show success banner if redirected from Stripe
   useEffect(() => {
@@ -77,7 +84,7 @@ export default function App() {
     const [{ data: prof }, { data: listsData }, { data: allItemsData }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase.from('lists').select('*').eq('user_id', user.id).order('created_at'),
-      supabase.from('items').select('*').eq('user_id', user.id),
+      supabase.from('items').select('*').eq('user_id', user.id).order('position'),
     ])
     setProfile(prof)
     setAllItems(allItemsData || [])
@@ -178,9 +185,15 @@ export default function App() {
     const item = allItems.find(i => i.id === id) || items.find(i => i.id === id)
     if (!item) return
     const updated = { ...item, done: !item.done }
+    // Optimistic update
     setItems(prev => prev.map(i => i.id === id ? updated : i))
     setAllItems(prev => prev.map(i => i.id === id ? updated : i))
-    await supabase.from('items').update({ done: updated.done }).eq('id', id)
+    // DB write — rollback on failure
+    const { error } = await supabase.from('items').update({ done: updated.done }).eq('id', id)
+    if (error) {
+      setItems(prev => prev.map(i => i.id === id ? item : i))
+      setAllItems(prev => prev.map(i => i.id === id ? item : i))
+    }
   }
 
   const toggleStar = async (id) => {
@@ -621,7 +634,12 @@ export default function App() {
             const updated = { done: true, focus_duration: elapsed }
             setItems(prev => prev.map(i => i.id === id ? { ...i, ...updated } : i))
             setAllItems(prev => prev.map(i => i.id === id ? { ...i, ...updated } : i))
-            await supabase.from('items').update(updated).eq('id', id)
+            const { error } = await supabase.from('items').update(updated).eq('id', id)
+            if (error) {
+              // Rollback on failure
+              setItems(prev => prev.map(i => i.id === id ? { ...i, done: false, focus_duration: 0 } : i))
+              setAllItems(prev => prev.map(i => i.id === id ? { ...i, done: false, focus_duration: 0 } : i))
+            }
             setFocusItem(null)
           }}
           onExit={(elapsed) => {
