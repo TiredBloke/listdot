@@ -139,7 +139,8 @@ export default function App() {
         // Fire-and-forget async updates
         supabase.from('profiles').update({ top3: newTop3, top3_open: profile.top3_open !== false }).eq('id', user.id)
         doneIds.forEach(id => supabase.from('items').update({ starred: false }).eq('id', id))
-        setTop3(newTop3)
+        // setTop3 called outside functional update to avoid React anti-pattern
+        setTimeout(() => setTop3(newTop3), 0)
         return currentAllItems.map(i => doneIds.includes(i.id) ? { ...i, starred: false } : i)
       })
     }
@@ -150,17 +151,26 @@ export default function App() {
     await supabase.from('profiles').update({ top3: newTop3, top3_open: newOpen ?? top3Open }).eq('id', user.id)
   }
 
-  // Clear completed tasks from Today's Focus
+  // Clear completed tasks from Today's Focus — uses functional updates to avoid stale closure
   const clearDoneFocus = async () => {
-    const doneIds = top3
-      .map(ref => allItems.find(i => i.id === ref.itemId))
-      .filter(item => item && item.done)
-      .map(item => item.id)
+    let doneIds = []
+    let newTop3 = []
+    setTop3(currentTop3 => {
+      setAllItems(currentAllItems => {
+        doneIds = currentTop3
+          .map(ref => currentAllItems.find(i => i.id === ref.itemId))
+          .filter(item => item && item.done)
+          .map(item => item.id)
+        return currentAllItems
+      })
+      if (doneIds.length === 0) return currentTop3
+      newTop3 = currentTop3.filter(ref => !doneIds.includes(ref.itemId))
+      return newTop3
+    })
     if (doneIds.length === 0) return
-    const newTop3 = top3.filter(ref => !doneIds.includes(ref.itemId))
-    await saveTop3(newTop3)
-    await Promise.all(doneIds.map(id => supabase.from('items').update({ starred: false }).eq('id', id)))
     setAllItems(prev => prev.map(i => doneIds.includes(i.id) ? { ...i, starred: false } : i))
+    await supabase.from('profiles').update({ top3: newTop3 }).eq('id', user.id)
+    await Promise.all(doneIds.map(id => supabase.from('items').update({ starred: false }).eq('id', id)))
   }
 
   const isPro = profile?.is_pro
@@ -188,11 +198,27 @@ export default function App() {
     // Optimistic update
     setItems(prev => prev.map(i => i.id === id ? updated : i))
     setAllItems(prev => prev.map(i => i.id === id ? updated : i))
+    // If marking done, remove from focus panel immediately (consistent with focus timer behaviour)
+    let removedFromTop3 = false
+    if (updated.done) {
+      setTop3(prev => {
+        const next = prev.filter(r => r.itemId !== id)
+        removedFromTop3 = next.length !== prev.length
+        return next
+      })
+    }
     // DB write — rollback on failure
     const { error } = await supabase.from('items').update({ done: updated.done }).eq('id', id)
     if (error) {
       setItems(prev => prev.map(i => i.id === id ? item : i))
       setAllItems(prev => prev.map(i => i.id === id ? item : i))
+      if (removedFromTop3) setTop3(prev => [...prev, { itemId: id, listId: item.list_id, listName: item.listName || '' }])
+    } else if (removedFromTop3) {
+      // Persist top3 update to DB
+      setTop3(currentTop3 => {
+        supabase.from('profiles').update({ top3: currentTop3 }).eq('id', user.id)
+        return currentTop3
+      })
     }
   }
 
@@ -628,24 +654,40 @@ export default function App() {
           item={focusItem}
           initialSeconds={focusTimers[focusItem.id] || 0}
           onDone={async (elapsed) => {
-            setFocusTimers(t => { const n = {...t}; delete n[focusItem.id]; return n })
             const id = focusItem.id
-            // Save focus_duration alongside marking done
-            const updated = { done: true, focus_duration: elapsed }
-            setItems(prev => prev.map(i => i.id === id ? { ...i, ...updated } : i))
-            setAllItems(prev => prev.map(i => i.id === id ? { ...i, ...updated } : i))
-            const { error } = await supabase.from('items').update(updated).eq('id', id)
-            if (error) {
-              // Rollback on failure
-              setItems(prev => prev.map(i => i.id === id ? { ...i, done: false, focus_duration: 0 } : i))
-              setAllItems(prev => prev.map(i => i.id === id ? { ...i, done: false, focus_duration: 0 } : i))
+            // 1. Clean up timer state
+            setFocusTimers(t => { const n = {...t}; delete n[id]; return n })
+            // 2. Optimistic UI — mark done, clear starred, update focus duration
+            setItems(prev => prev.map(i => i.id === id ? { ...i, done: true, starred: false, focus_duration: elapsed } : i))
+            setAllItems(prev => prev.map(i => i.id === id ? { ...i, done: true, starred: false, focus_duration: elapsed } : i))
+            // 3. Remove from Focus panel immediately — use functional update to avoid stale closure
+            let savedTop3Before = null
+            let newTop3 = null
+            setTop3(prev => {
+              savedTop3Before = prev
+              newTop3 = prev.filter(r => r.itemId !== id)
+              return newTop3
+            })
+            // 4. Write done + starred to DB (critical)
+            const { error: doneError } = await supabase.from('items').update({ done: true, starred: false }).eq('id', id)
+            if (doneError) {
+              // Rollback everything on failure using saved pre-change value
+              setItems(prev => prev.map(i => i.id === id ? { ...i, done: false, starred: true } : i))
+              setAllItems(prev => prev.map(i => i.id === id ? { ...i, done: false, starred: true } : i))
+              if (savedTop3Before) setTop3(savedTop3Before)
+            } else {
+              // 5. Save top3 and focus_duration (non-critical, don't rollback)
+              if (newTop3) await supabase.from('profiles').update({ top3: newTop3 }).eq('id', user.id)
+              await supabase.from('items').update({ focus_duration: elapsed }).eq('id', id)
             }
-            setFocusItem(null)
+            // NOTE: setFocusItem(null) is called from the "Back to List." button
+            // so the completion screen stays visible while DB writes happen
           }}
           onExit={(elapsed) => {
             setFocusTimers(t => ({ ...t, [focusItem.id]: elapsed }))
             setFocusItem(null)
           }}
+          onClose={() => setFocusItem(null)}
         />
       )}
     </>
@@ -858,22 +900,23 @@ function formatDate(ts) {
 }
 
 // ─── FOCUS SCREEN ────────────────────────────────────────────────────────────
-function FocusScreen({ item, onDone, onExit, initialSeconds = 0 }) {
+function FocusScreen({ item, onDone, onExit, onClose, initialSeconds = 0 }) {
   const STORAGE_KEY = `focus_timer_${item.id}`
+  const isDoneRef = React.useRef(false)
 
   // On mount: restore from localStorage if available, else use initialSeconds
   const getInitialState = () => {
+    const now = Date.now()
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY))
       if (saved && !saved.paused) {
-        // Timer was running — calculate elapsed from saved startTime
-        const elapsed = Math.floor((Date.now() - saved.startTime) / 1000)
+        const elapsed = Math.floor((now - saved.startTime) / 1000)
         return { seconds: elapsed, paused: false, startTime: saved.startTime, baseSeconds: elapsed }
       } else if (saved && saved.paused) {
         return { seconds: saved.baseSeconds, paused: true, startTime: null, baseSeconds: saved.baseSeconds }
       }
     } catch {}
-    return { seconds: initialSeconds, paused: false, startTime: Date.now() - initialSeconds * 1000, baseSeconds: initialSeconds }
+    return { seconds: initialSeconds, paused: false, startTime: now - initialSeconds * 1000, baseSeconds: initialSeconds }
   }
 
   const init = getInitialState()
@@ -881,7 +924,7 @@ function FocusScreen({ item, onDone, onExit, initialSeconds = 0 }) {
   const [seconds, setSeconds] = useState(init.seconds)
   const [complete, setComplete] = useState(false)
   const [flash, setFlash] = useState(false)
-  const startTimeRef = React.useRef(init.paused ? null : (Date.now() - init.seconds * 1000))
+  const startTimeRef = React.useRef(init.startTime)
   const pausedSecondsRef = React.useRef(init.seconds)
 
   // Persist timer state to localStorage on every tick and pause/resume
@@ -924,10 +967,14 @@ function FocusScreen({ item, onDone, onExit, initialSeconds = 0 }) {
   }, [paused, complete])
 
   const handlePause = () => {
-    pausedSecondsRef.current = seconds
+    // Read elapsed directly from startTimeRef — avoids React state async lag
+    const elapsed = startTimeRef.current
+      ? Math.floor((Date.now() - startTimeRef.current) / 1000)
+      : seconds
+    pausedSecondsRef.current = elapsed
     startTimeRef.current = null
     setPaused(true)
-    persist(seconds, true)
+    persist(elapsed, true)
   }
 
   const handleResume = () => {
@@ -943,12 +990,14 @@ function FocusScreen({ item, onDone, onExit, initialSeconds = 0 }) {
   }
 
   const handleDone = () => {
+    if (isDoneRef.current) return  // prevent double-fire
+    isDoneRef.current = true
     try { localStorage.removeItem(STORAGE_KEY) } catch {}
     onDone(seconds)  // Save to DB immediately — don't wait for animation
     setFlash(true)
     setTimeout(() => {
+      setComplete(true)  // set complete first so background transitions to dark, not gradient
       setFlash(false)
-      setComplete(true)
     }, 1200)
   }
 
@@ -1057,7 +1106,7 @@ function FocusScreen({ item, onDone, onExit, initialSeconds = 0 }) {
           <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.3)', marginBottom: '48px' }}>
             {Math.floor(seconds / 60) > 0 ? `${Math.floor(seconds / 60)} min` : `${seconds} sec`} of focused work
           </p>
-          <button onClick={() => onExit(0)} style={{
+          <button onClick={onClose} style={{
             padding: '14px 32px', borderRadius: '10px',
             border: 'none', background: '#0f6644',
             color: '#fff', fontFamily: 'Inter, sans-serif',
