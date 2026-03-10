@@ -813,16 +813,65 @@ function formatDate(ts) {
 
 // ─── FOCUS SCREEN ────────────────────────────────────────────────────────────
 function FocusScreen({ item, onDone, onExit, initialSeconds = 0 }) {
-  const [paused, setPaused] = useState(false)
-  const [seconds, setSeconds] = useState(initialSeconds)
+  const STORAGE_KEY = `focus_timer_${item.id}`
+
+  // On mount: restore from localStorage if available, else use initialSeconds
+  const getInitialState = () => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY))
+      if (saved && !saved.paused) {
+        // Timer was running — calculate elapsed from saved startTime
+        const elapsed = Math.floor((Date.now() - saved.startTime) / 1000) + saved.baseSeconds
+        return { seconds: elapsed, paused: false, startTime: Date.now() - (elapsed - saved.baseSeconds) * 1000, baseSeconds: elapsed }
+      } else if (saved && saved.paused) {
+        return { seconds: saved.baseSeconds, paused: true, startTime: null, baseSeconds: saved.baseSeconds }
+      }
+    } catch {}
+    return { seconds: initialSeconds, paused: false, startTime: Date.now() - initialSeconds * 1000, baseSeconds: initialSeconds }
+  }
+
+  const init = getInitialState()
+  const [paused, setPaused] = useState(init.paused)
+  const [seconds, setSeconds] = useState(init.seconds)
   const [complete, setComplete] = useState(false)
   const [flash, setFlash] = useState(false)
+  const startTimeRef = React.useRef(init.paused ? null : (Date.now() - init.seconds * 1000))
+  const pausedSecondsRef = React.useRef(init.seconds)
+
+  // Persist timer state to localStorage on every tick and pause/resume
+  const persist = (secs, isPaused) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        startTime: isPaused ? null : (Date.now() - secs * 1000),
+        baseSeconds: secs,
+        paused: isPaused,
+      }))
+    } catch {}
+  }
 
   useEffect(() => {
     if (paused || complete) return
-    const id = setInterval(() => setSeconds(s => s + 1), 1000)
+    if (!startTimeRef.current) startTimeRef.current = Date.now() - pausedSecondsRef.current * 1000
+    const id = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000)
+      setSeconds(elapsed)
+      persist(elapsed, false)
+    }, 500) // 500ms for snappier updates, Date.now() keeps it accurate
     return () => clearInterval(id)
   }, [paused, complete])
+
+  const handlePause = () => {
+    pausedSecondsRef.current = seconds
+    startTimeRef.current = null
+    setPaused(true)
+    persist(seconds, true)
+  }
+
+  const handleResume = () => {
+    startTimeRef.current = Date.now() - pausedSecondsRef.current * 1000
+    setPaused(false)
+    persist(pausedSecondsRef.current, false)
+  }
 
   const formatTime = (s) => {
     const m = Math.floor(s / 60)
@@ -831,6 +880,7 @@ function FocusScreen({ item, onDone, onExit, initialSeconds = 0 }) {
   }
 
   const handleDone = () => {
+    try { localStorage.removeItem(STORAGE_KEY) } catch {}
     setFlash(true)
     setTimeout(() => { setFlash(false); setComplete(true) }, 600)
     onDone()
@@ -846,7 +896,7 @@ function FocusScreen({ item, onDone, onExit, initialSeconds = 0 }) {
     }}>
       {/* Exit button */}
       {!complete && (
-        <button onClick={() => onExit(seconds)} style={{
+        <button onClick={() => { try { localStorage.removeItem(STORAGE_KEY) } catch {} onExit(seconds) }} style={{
           position: 'absolute', top: '24px', right: '24px',
           background: 'none', border: 'none', color: 'rgba(255,255,255,0.2)',
           fontSize: '0.75rem', cursor: 'pointer', transition: 'color 0.2s',
@@ -897,7 +947,7 @@ function FocusScreen({ item, onDone, onExit, initialSeconds = 0 }) {
 
           {/* Buttons */}
           <div style={{ display: 'flex', gap: '12px' }}>
-            <button onClick={() => setPaused(p => !p)} style={{
+            <button onClick={paused ? handleResume : handlePause} style={{
               padding: '12px 28px', borderRadius: '10px',
               border: '1.5px solid rgba(255,255,255,0.15)', background: 'transparent',
               color: 'rgba(255,255,255,0.6)', fontFamily: 'Inter, sans-serif',
@@ -907,6 +957,7 @@ function FocusScreen({ item, onDone, onExit, initialSeconds = 0 }) {
               onMouseOver={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)'; e.currentTarget.style.color = 'rgba(255,255,255,0.9)' }}
               onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; e.currentTarget.style.color = 'rgba(255,255,255,0.6)' }}
             >{paused ? 'Resume' : 'Pause'}</button>
+
             <button onClick={handleDone} style={{
               padding: '12px 28px', borderRadius: '10px',
               border: 'none', background: '#4ade80',
