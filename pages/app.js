@@ -756,9 +756,12 @@ function FocusPanel({ top3, items, lists, top3Open, onToggleOpen, onToggleDone, 
 
 
 function FocusPanelRow({ index, item, onToggleDone, onRemove, onFocus }) {
+  const [hovered, setHovered] = React.useState(false)
   return (
     <div
-      style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 20px", borderBottom: index < 4 ? "1px solid #f0f8f4" : "none", minHeight: "48px" }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px 20px", borderBottom: index < 4 ? "1px solid #f0f8f4" : "none", minHeight: "48px" }}
     >
       <span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700, fontSize: "0.65rem", color: "#0f6644", opacity: 0.7, width: "18px", flexShrink: 0 }}>{String(index + 1).padStart(2, "0")}</span>
       {item ? (
@@ -766,17 +769,18 @@ function FocusPanelRow({ index, item, onToggleDone, onRemove, onFocus }) {
           <div onClick={() => onToggleDone(item.id)} style={{ width: "18px", height: "18px", borderRadius: "50%", border: `2px solid ${item.done ? "#0f6644" : "rgba(15,102,68,0.3)"}`, background: item.done ? "#0f6644" : "transparent", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}>
             {item.done && <span style={{ fontSize: "0.5rem", color: "#fff", fontWeight: 700 }}>✓</span>}
           </div>
-          <span style={{ flex: 1, fontSize: "0.87rem", color: item.done ? "#9a8f7a" : "#0f1a14", textDecoration: item.done ? "line-through" : "none" }}>{item.text}</span>
-          {!item.done && onFocus && (
-            <button onClick={() => onFocus(item)} style={{ background: "none", border: "1px solid rgba(74,222,128,0.5)", borderRadius: "6px", cursor: "pointer", fontSize: "0.65rem", color: "#4ade80", padding: "3px 8px", fontFamily: "Inter, sans-serif", fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0 }}
-              onMouseOver={e => e.currentTarget.style.background = "rgba(74,222,128,0.1)"}
-              onMouseOut={e => e.currentTarget.style.background = "none"}
-            >Focus →</button>
-          )}
-          <span style={{ fontSize: "0.62rem", padding: "2px 8px", borderRadius: "10px", background: "#eaf5f0", color: "#0f6644", fontWeight: 600, flexShrink: 0 }}>{item.listName}</span>
-          <button onClick={() => onRemove(item.id)} style={{ background: "none", border: "none", color: "#c0b8a8", fontSize: "1rem", cursor: "pointer", padding: "0 2px", opacity: 0 }}
-            onMouseOver={e => e.target.style.opacity = 1} onMouseOut={e => e.target.style.opacity = 0}
-          >×</button>
+          <span style={{ flex: 1, fontSize: "0.87rem", color: item.done ? "#9a8f7a" : "#0f1a14", textDecoration: item.done ? "line-through" : "none", minWidth: 0 }}>{item.text}</span>
+          {/* Right side: fixed layout — list badge always visible, Focus → only on hover/desktop */}
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+            {!item.done && onFocus && hovered && (
+              <button onClick={() => onFocus(item)} style={{ background: "none", border: "1px solid rgba(74,222,128,0.5)", borderRadius: "6px", cursor: "pointer", fontSize: "0.65rem", color: "#4ade80", padding: "3px 8px", fontFamily: "Inter, sans-serif", fontWeight: 600, whiteSpace: "nowrap" }}
+                onMouseOver={e => e.currentTarget.style.background = "rgba(74,222,128,0.1)"}
+                onMouseOut={e => e.currentTarget.style.background = "none"}
+              >Focus →</button>
+            )}
+            <span style={{ fontSize: "0.62rem", padding: "2px 8px", borderRadius: "10px", background: "#eaf5f0", color: "#0f6644", fontWeight: 600, whiteSpace: "nowrap" }}>{item.listName}</span>
+            {hovered && <button onClick={() => onRemove(item.id)} style={{ background: "none", border: "none", color: "#c0b8a8", fontSize: "1rem", cursor: "pointer", padding: "0 2px" }}>×</button>}
+          </div>
         </>
       ) : (
         <span style={{ fontSize: "0.78rem", color: "#c0b8a8", fontStyle: "italic" }}>⭐ star a task to pin it here</span>
