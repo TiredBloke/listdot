@@ -919,12 +919,12 @@ function FocusScreen({ item, onDone, onExit, initialSeconds = 0 }) {
 
   const handleDone = () => {
     try { localStorage.removeItem(STORAGE_KEY) } catch {}
+    onDone(seconds)  // Save to DB immediately — don't wait for animation
     setFlash(true)
     setTimeout(() => {
       setFlash(false)
       setComplete(true)
-      onDone(seconds)
-    }, 800)
+    }, 1200)
   }
 
   return (
