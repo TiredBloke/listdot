@@ -924,7 +924,7 @@ function FocusScreen({ item, onDone, onExit, initialSeconds = 0 }) {
       setFlash(false)
       setComplete(true)
       onDone(seconds)
-    }, 1200)
+    }, 800)
   }
 
   return (
