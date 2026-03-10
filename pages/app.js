@@ -861,13 +861,30 @@ function FocusScreen({ item, onDone, onExit, initialSeconds = 0 }) {
 
   useEffect(() => {
     if (paused || complete) return
-    if (!startTimeRef.current) startTimeRef.current = Date.now() - pausedSecondsRef.current * 1000
-    const id = setInterval(() => {
+
+    if (!startTimeRef.current) {
+      startTimeRef.current = Date.now() - pausedSecondsRef.current * 1000
+    }
+
+    const tick = () => {
+      if (!startTimeRef.current) return
       const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000)
       setSeconds(elapsed)
       persist(elapsed, false)
-    }, 500) // 500ms for snappier updates, Date.now() keeps it accurate
-    return () => clearInterval(id)
+    }
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') tick()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+
+    tick()
+    const id = setInterval(tick, 1000)
+
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
   }, [paused, complete])
 
   const handlePause = () => {
