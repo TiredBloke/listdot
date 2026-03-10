@@ -36,6 +36,8 @@ export default function App() {
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [focusTimers, setFocusTimers] = useState({})
+  const [toast, setToast] = useState(null)
+  const toastTimerRef = React.useRef(null)
 
   // Redirect if not logged in
   // Only redirect if still no user after a grace period — prevents spurious
@@ -233,7 +235,14 @@ export default function App() {
     let newTop3 = [...top3]
     if (updated.starred) {
       if (!newTop3.find(r => r.itemId === id)) {
-        if (newTop3.length >= 5) newTop3.shift()
+        if (newTop3.length >= 5) {
+          // Block — focus panel full, revert optimistic star and notify
+          showToast('Focus panel full — complete or remove a task first', 'warn')
+          setItems(prev => prev.map(i => i.id === id ? item : i))
+          setAllItems(prev => prev.map(i => i.id === id ? item : i))
+          await supabase.from('items').update({ starred: false }).eq('id', id)
+          return
+        }
         newTop3.push({ itemId: id, listId: activeList.id, listName: activeList.name })
       }
     } else {
@@ -305,6 +314,12 @@ export default function App() {
   const logout = async () => {
     await supabase.auth.signOut()
     router.push('/')
+  }
+
+  const showToast = (message, type = 'info') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    setToast({ message, type })
+    toastTimerRef.current = setTimeout(() => setToast(null), 3000)
   }
 
   const filteredItems = (() => {
@@ -648,6 +663,8 @@ export default function App() {
           }}
         />
       )}
+
+      <Toast toast={toast} />
 
       {focusItem && (
         <FocusScreen
@@ -1116,6 +1133,51 @@ function FocusScreen({ item, onDone, onExit, onClose, initialSeconds = 0 }) {
         </div>
       )}
     </div>
+  )
+}
+
+// ─── TOAST ───────────────────────────────────────────────────────────────────
+function Toast({ toast }) {
+  if (!toast) return null
+  const isWarn = toast.type === 'warn'
+  return (
+    <>
+      <style>{`
+        @keyframes toastIn {
+          from { opacity: 0; transform: translateY(16px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @media (max-width: 600px) {
+          .toast-container {
+            left: 12px !important;
+            right: 12px !important;
+            bottom: 80px !important;
+            max-width: none !important;
+            width: auto !important;
+          }
+        }
+      `}</style>
+      <div className="toast-container" style={{
+        position: 'fixed',
+        bottom: '32px',
+        right: '24px',
+        maxWidth: '320px',
+        zIndex: 500,
+        animation: 'toastIn 0.25s ease-out',
+        background: isWarn ? '#fff8ec' : '#f0faf5',
+        border: `1.5px solid ${isWarn ? 'rgba(212,146,10,0.3)' : 'rgba(15,102,68,0.2)'}`,
+        borderRadius: '12px',
+        padding: '12px 16px',
+        boxShadow: '0 4px 24px rgba(0,0,0,0.1)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        fontFamily: 'Inter, sans-serif',
+      }}>
+        <span style={{ fontSize: '1rem', flexShrink: 0 }}>{isWarn ? '⚠️' : 'ℹ️'}</span>
+        <span style={{ fontSize: '0.82rem', color: '#0f1a14', fontWeight: 500, lineHeight: 1.4 }}>{toast.message}</span>
+      </div>
+    </>
   )
 }
 
