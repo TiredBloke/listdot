@@ -57,7 +57,7 @@ export default function App() {
         e.preventDefault()
         setShowSearch(s => !s)
       }
-      if (e.key === 'Escape') setShowSearch(false)
+      if (e.key === 'Escape') { setShowSearch(false); setShowUserMenu(false) }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
@@ -106,11 +106,33 @@ export default function App() {
     setItems(data || [])
   }
 
-  // Load top3 from user profile
+  // Load top3 from user profile + auto-clear done focus items on first load of day
   useEffect(() => {
     if (!profile) return
-    setTop3(profile.top3 || [])
+    const loadedTop3 = profile.top3 || []
+    setTop3(loadedTop3)
     setTop3Open(profile.top3_open !== false)
+    // Auto-clear: run against freshly loaded top3 and allItems directly
+    if (!user || loadedTop3.length === 0) return
+    const today = new Date().toDateString()
+    const lastClear = localStorage.getItem(`focus_clear_${user.id}`)
+    if (lastClear !== today) {
+      localStorage.setItem(`focus_clear_${user.id}`, today)
+      // We have fresh allItems in closure from loadData — use functional update
+      setAllItems(currentAllItems => {
+        const doneIds = loadedTop3
+          .map(ref => currentAllItems.find(i => i.id === ref.itemId))
+          .filter(item => item && item.done)
+          .map(item => item.id)
+        if (doneIds.length === 0) return currentAllItems
+        const newTop3 = loadedTop3.filter(ref => !doneIds.includes(ref.itemId))
+        // Fire-and-forget async updates
+        supabase.from('profiles').update({ top3: newTop3, top3_open: profile.top3_open !== false }).eq('id', user.id)
+        doneIds.forEach(id => supabase.from('items').update({ starred: false }).eq('id', id))
+        setTop3(newTop3)
+        return currentAllItems.map(i => doneIds.includes(i.id) ? { ...i, starred: false } : i)
+      })
+    }
   }, [profile])
 
   const saveTop3 = async (newTop3, newOpen) => {
@@ -130,17 +152,6 @@ export default function App() {
     await Promise.all(doneIds.map(id => supabase.from('items').update({ starred: false }).eq('id', id)))
     setAllItems(prev => prev.map(i => doneIds.includes(i.id) ? { ...i, starred: false } : i))
   }
-
-  // Auto-clear completed focus items on first load of the day
-  useEffect(() => {
-    if (!user || !profile || top3.length === 0) return
-    const today = new Date().toDateString()
-    const lastClear = localStorage.getItem(`focus_clear_${user.id}`)
-    if (lastClear !== today) {
-      clearDoneFocus()
-      localStorage.setItem(`focus_clear_${user.id}`, today)
-    }
-  }, [profile])
 
   const isPro = profile?.is_pro
 
@@ -174,6 +185,7 @@ export default function App() {
     if (!item) return
     const updated = { ...item, starred: !item.starred }
     setItems(prev => prev.map(i => i.id === id ? updated : i))
+    setAllItems(prev => prev.map(i => i.id === id ? updated : i))
     await supabase.from('items').update({ starred: updated.starred }).eq('id', id)
     // Update top3
     let newTop3 = [...top3]
@@ -190,18 +202,22 @@ export default function App() {
 
   const deleteItem = async (id) => {
     setItems(prev => prev.filter(i => i.id !== id))
+    setAllItems(prev => prev.filter(i => i.id !== id))
     const newTop3 = top3.filter(r => r.itemId !== id)
     if (newTop3.length !== top3.length) await saveTop3(newTop3)
     await supabase.from('items').delete().eq('id', id)
   }
 
   const updateItemText = async (id, text) => {
+    setItems(prev => prev.map(i => i.id === id ? { ...i, text } : i))
+    setAllItems(prev => prev.map(i => i.id === id ? { ...i, text } : i))
     await supabase.from('items').update({ text }).eq('id', id)
   }
 
   const clearDone = async () => {
     const doneIds = items.filter(i => i.done).map(i => i.id)
     setItems(prev => prev.filter(i => !i.done))
+    setAllItems(prev => prev.filter(i => !doneIds.includes(i.id)))
     const newTop3 = top3.filter(r => !doneIds.includes(r.itemId))
     if (newTop3.length !== top3.length) await saveTop3(newTop3)
     await supabase.from('items').delete().in('id', doneIds)
@@ -248,12 +264,6 @@ export default function App() {
     await supabase.auth.signOut()
     router.push('/')
   }
-
-  // Top3 items resolved
-  const top3Items = top3.map(ref => {
-    // Could be from any list — for simplicity track from items in current list or ref
-    return { ...ref, text: ref.text || '—', done: ref.done || false }
-  })
 
   const filteredItems = (() => {
     let f = items.filter(i => {
@@ -305,7 +315,7 @@ export default function App() {
 
         {/* TOP BAR */}
         <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
+          position: 'fixed', top: successBanner ? '44px' : 0, left: 0, right: 0, zIndex: 100,
           background: 'rgba(247,244,239,0.9)', backdropFilter: 'blur(10px)',
           borderBottom: '1.5px solid #ede8df',
           padding: '0 24px', height: '56px',
@@ -397,6 +407,7 @@ export default function App() {
               const item = items.find(i => i.id === itemId)
               if (item) await supabase.from('items').update({ starred: false }).eq('id', itemId)
               setItems(prev => prev.map(i => i.id === itemId ? { ...i, starred: false } : i))
+              setAllItems(prev => prev.map(i => i.id === itemId ? { ...i, starred: false } : i))
             }}
             onFocus={(item) => setFocusItem(item)}
             onClearDone={clearDoneFocus}
@@ -495,15 +506,15 @@ export default function App() {
                   onDragEnd={() => setDragSrcId(null)}
                   onDrop={async () => {
                     if (!dragSrcId || dragSrcId === item.id) return
-                    const allItems = [...items]
-                    const si = allItems.findIndex(i => i.id === dragSrcId)
-                    const ti = allItems.findIndex(i => i.id === item.id)
+                    const reordered = [...items]
+                    const si = reordered.findIndex(i => i.id === dragSrcId)
+                    const ti = reordered.findIndex(i => i.id === item.id)
                     if (si === -1 || ti === -1) return
-                    const [moved] = allItems.splice(si, 1)
-                    allItems.splice(ti, 0, moved)
-                    setItems(allItems)
+                    const [moved] = reordered.splice(si, 1)
+                    reordered.splice(ti, 0, moved)
+                    setItems(reordered)
                     // Update positions
-                    await Promise.all(allItems.map((it, idx) =>
+                    await Promise.all(reordered.map((it, idx) =>
                       supabase.from('items').update({ position: idx }).eq('id', it.id)
                     ))
                   }}
@@ -744,7 +755,7 @@ function FocusPanel({ top3, items, lists, top3Open, onToggleOpen, onToggleDone, 
 function FocusPanelRow({ index, item, onToggleDone, onRemove, onFocus }) {
   return (
     <div
-      style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 20px", borderBottom: index < 2 ? "1px solid #f0f8f4" : "none", minHeight: "48px" }}
+      style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 20px", borderBottom: index < 4 ? "1px solid #f0f8f4" : "none", minHeight: "48px" }}
     >
       <span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 700, fontSize: "0.65rem", color: "#0f6644", opacity: 0.7, width: "18px", flexShrink: 0 }}>{String(index + 1).padStart(2, "0")}</span>
       {item ? (
@@ -831,8 +842,8 @@ function FocusScreen({ item, onDone, onExit, initialSeconds = 0 }) {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY))
       if (saved && !saved.paused) {
         // Timer was running — calculate elapsed from saved startTime
-        const elapsed = Math.floor((Date.now() - saved.startTime) / 1000) + saved.baseSeconds
-        return { seconds: elapsed, paused: false, startTime: Date.now() - (elapsed - saved.baseSeconds) * 1000, baseSeconds: elapsed }
+        const elapsed = Math.floor((Date.now() - saved.startTime) / 1000)
+        return { seconds: elapsed, paused: false, startTime: saved.startTime, baseSeconds: elapsed }
       } else if (saved && saved.paused) {
         return { seconds: saved.baseSeconds, paused: true, startTime: null, baseSeconds: saved.baseSeconds }
       }
@@ -908,9 +919,12 @@ function FocusScreen({ item, onDone, onExit, initialSeconds = 0 }) {
 
   const handleDone = () => {
     try { localStorage.removeItem(STORAGE_KEY) } catch {}
-    onDone(seconds)
     setFlash(true)
-    setTimeout(() => { setFlash(false); setComplete(true) }, 600)
+    setTimeout(() => {
+      setFlash(false)
+      setComplete(true)
+      onDone(seconds)
+    }, 600)
   }
 
   return (
@@ -1018,7 +1032,7 @@ function FocusScreen({ item, onDone, onExit, initialSeconds = 0 }) {
           <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.3)', marginBottom: '48px' }}>
             {Math.floor(seconds / 60) > 0 ? `${Math.floor(seconds / 60)} min` : `${seconds} sec`} of focused work
           </p>
-          <button onClick={onExit} style={{
+          <button onClick={() => onExit(0)} style={{
             padding: '14px 32px', borderRadius: '10px',
             border: 'none', background: '#0f6644',
             color: '#fff', fontFamily: 'Inter, sans-serif',
