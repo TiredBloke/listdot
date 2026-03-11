@@ -439,8 +439,8 @@ export default function App() {
 
           {/* Header */}
           <div style={{ marginBottom: '28px' }}>
-            <h1 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800, fontSize: '2.4rem', color: '#0f1a14', letterSpacing: '-1.5px', lineHeight: 1 }}>Lists</h1>
-            <p style={{ fontSize: '0.72rem', color: '#9a8f7a', marginTop: '6px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Your digital notebook</p>
+            <h1 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800, fontSize: '2.4rem', color: '#0f1a14', letterSpacing: '-1.5px', lineHeight: 1 }}>List<span style={{ color: '#0f6644' }}>.</span></h1>
+            <p style={{ fontSize: '0.72rem', color: '#9a8f7a', marginTop: '6px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Less list. More done.</p>
             <div style={{ display: 'flex', gap: '6px', marginTop: '14px', flexWrap: 'wrap' }}>
               <StatPill label={`${total} total`} />
               <StatPill label={`${done} done`} color="green" />
