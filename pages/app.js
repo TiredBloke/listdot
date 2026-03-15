@@ -38,6 +38,12 @@ export default function App() {
   const [focusTimers, setFocusTimers] = useState({})
   const [toast, setToast] = useState(null)
   const toastTimerRef = React.useRef(null)
+  const [showShare, setShowShare] = useState(false)
+  const [shareList, setShareList] = useState(null)
+  const [shareEmail, setShareEmail] = useState('')
+  const [sharePermission, setSharePermission] = useState('edit')
+  const [shareSending, setShareSending] = useState(false)
+  const [shareSuccess, setShareSuccess] = useState(false)
 
   // Redirect if not logged in
   // Only redirect if still no user after a grace period — prevents spurious
@@ -316,6 +322,34 @@ export default function App() {
     router.push('/')
   }
 
+  const handleShare = async () => {
+    if (!shareEmail.trim()) return
+    setShareSending(true)
+    try {
+      const res = await fetch('/api/share-list', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          listId: shareList.id,
+          ownerEmail: user.email,
+          ownerName: user.user_metadata?.full_name || user.email.split('@')[0],
+          sharedWithEmail: shareEmail.trim(),
+          permission: sharePermission,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        showToast(data.error || 'Failed to send invite', 'warn')
+      } else {
+        setShareSuccess(true)
+        setShareEmail('')
+      }
+    } catch (err) {
+      showToast('Something went wrong. Please try again.', 'warn')
+    }
+    setShareSending(false)
+  }
+
   const showToast = (message, type = 'info') => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
     setToast({ message, type })
@@ -473,23 +507,56 @@ export default function App() {
           {/* List tabs */}
           <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
             {lists.map(list => (
-              <button key={list.id}
-                onClick={() => setActiveList(list)}
-                onContextMenu={e => { e.preventDefault(); deleteList(list.id) }}
-                title="Right-click to delete"
-                style={{
-                  fontFamily: 'Inter, sans-serif', fontSize: '0.78rem', fontWeight: 500,
-                  padding: '7px 16px', borderRadius: '20px',
-                  border: `1.5px solid ${activeList?.id === list.id ? list.color : '#ede8df'}`,
-                  background: activeList?.id === list.id ? list.color : '#fff',
-                  color: activeList?.id === list.id ? '#fff' : '#4a4235',
-                  cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', gap: '6px',
-                  boxShadow: activeList?.id === list.id ? `0 2px 12px ${list.color}44` : '0 1px 4px rgba(0,0,0,0.06)',
-                }}>
-                <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: activeList?.id === list.id ? 'rgba(255,255,255,0.7)' : list.color, flexShrink: 0 }} />
-                {list.name}
-              </button>
+              <div key={list.id} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <button
+                  onClick={() => setActiveList(list)}
+                  onContextMenu={e => { e.preventDefault(); deleteList(list.id) }}
+                  title="Right-click to delete"
+                  style={{
+                    fontFamily: 'Inter, sans-serif', fontSize: '0.78rem', fontWeight: 500,
+                    padding: '7px 16px', borderRadius: '20px',
+                    border: `1.5px solid ${activeList?.id === list.id ? list.color : '#ede8df'}`,
+                    background: activeList?.id === list.id ? list.color : '#fff',
+                    color: activeList?.id === list.id ? '#fff' : '#4a4235',
+                    cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    boxShadow: activeList?.id === list.id ? `0 2px 12px ${list.color}44` : '0 1px 4px rgba(0,0,0,0.06)',
+                  }}>
+                  <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: activeList?.id === list.id ? 'rgba(255,255,255,0.7)' : list.color, flexShrink: 0 }} />
+                  {list.name}
+                </button>
+                {activeList?.id === list.id && isPro && (
+                  <button
+                    onClick={() => { setShareList(list); setShareSuccess(false); setShareEmail(''); setShowShare(true) }}
+                    title="Share this list"
+                    style={{
+                      background: 'none', border: '1.5px solid #ede8df', borderRadius: '20px',
+                      padding: '5px 10px', cursor: 'pointer', fontSize: '0.72rem',
+                      color: '#9a8f7a', fontFamily: 'Inter, sans-serif', fontWeight: 500,
+                      display: 'flex', alignItems: 'center', gap: '4px',
+                      transition: 'all 0.15s',
+                    }}
+                    onMouseOver={e => { e.currentTarget.style.borderColor = '#0f6644'; e.currentTarget.style.color = '#0f6644' }}
+                    onMouseOut={e => { e.currentTarget.style.borderColor = '#ede8df'; e.currentTarget.style.color = '#9a8f7a' }}
+                  >
+                    ↗ Share
+                  </button>
+                )}
+                {activeList?.id === list.id && !isPro && (
+                  <button
+                    onClick={() => setShowUpgrade(true)}
+                    title="Upgrade to share lists"
+                    style={{
+                      background: 'none', border: '1.5px solid #ede8df', borderRadius: '20px',
+                      padding: '5px 10px', cursor: 'pointer', fontSize: '0.72rem',
+                      color: '#c0b8a8', fontFamily: 'Inter, sans-serif', fontWeight: 500,
+                      display: 'flex', alignItems: 'center', gap: '4px',
+                    }}
+                  >
+                    ↗ Share
+                  </button>
+                )}
+              </div>
             ))}
             <button onClick={() => canAddList ? setShowNewList(true) : setShowUpgrade(true)}
               style={{
@@ -650,6 +717,73 @@ export default function App() {
           </div>
         </Modal>
       )}
+      {/* SHARE MODAL */}
+      {showShare && shareList && (
+        <Modal onClose={() => { setShowShare(false); setShareSuccess(false); setShareEmail('') }}>
+          {!shareSuccess ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: shareList.color, flexShrink: 0 }} />
+                <h2 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800, fontSize: '1.4rem', color: '#0f1a14', letterSpacing: '-0.5px', margin: 0 }}>Share "{shareList.name}"</h2>
+              </div>
+              <p style={{ fontSize: '0.8rem', color: '#9a8f7a', marginBottom: '24px' }}>Invite someone to collaborate on this list.</p>
+
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4a4235', display: 'block', marginBottom: '6px' }}>Email address</label>
+              <input
+                value={shareEmail}
+                onChange={e => setShareEmail(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleShare()}
+                placeholder="colleague@example.com"
+                type="email"
+                autoFocus
+                style={{ width: '100%', padding: '11px 14px', borderRadius: '8px', border: '1.5px solid #ede8df', fontFamily: 'Inter, sans-serif', fontSize: '0.9rem', color: '#0f1a14', outline: 'none', marginBottom: '16px', background: '#fafaf8', boxSizing: 'border-box' }}
+                onFocus={e => e.target.style.borderColor = '#0f6644'}
+                onBlur={e => e.target.style.borderColor = '#ede8df'}
+              />
+
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4a4235', display: 'block', marginBottom: '8px' }}>Permission</label>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '28px' }}>
+                {['edit', 'view'].map(p => (
+                  <button key={p} onClick={() => setSharePermission(p)} style={{
+                    flex: 1, padding: '10px', borderRadius: '8px', cursor: 'pointer',
+                    border: `1.5px solid ${sharePermission === p ? '#0f6644' : '#ede8df'}`,
+                    background: sharePermission === p ? '#eaf5f0' : '#fff',
+                    fontFamily: 'Inter, sans-serif', fontSize: '0.82rem', fontWeight: 600,
+                    color: sharePermission === p ? '#0f6644' : '#9a8f7a',
+                    transition: 'all 0.15s',
+                  }}>
+                    {p === 'edit' ? '✏️ Can edit' : '👁 View only'}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                <button onClick={() => setShowShare(false)} style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500, fontSize: '0.85rem', padding: '10px 18px', borderRadius: '8px', border: '1.5px solid #ede8df', background: 'transparent', color: '#4a4235', cursor: 'pointer' }}>Cancel</button>
+                <button onClick={handleShare} disabled={shareSending || !shareEmail.trim()} style={{
+                  fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '0.85rem',
+                  padding: '10px 22px', borderRadius: '8px', border: 'none',
+                  background: shareEmail.trim() ? '#0f6644' : '#c0b8a8',
+                  color: '#fff', cursor: shareEmail.trim() ? 'pointer' : 'default',
+                  transition: 'background 0.15s',
+                }}>{shareSending ? 'Sending…' : 'Send invite'}</button>
+              </div>
+            </>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '12px 0' }}>
+              <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'radial-gradient(circle at 35% 35%, #6ee7a0, #0f6644)', margin: '0 auto 20px', boxShadow: '0 0 32px rgba(74,222,128,0.3)' }} />
+              <h2 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800, fontSize: '1.4rem', color: '#0f6644', letterSpacing: '-0.5px', marginBottom: '8px' }}>Invite sent!</h2>
+              <p style={{ fontSize: '0.85rem', color: '#4a4235', lineHeight: 1.6, marginBottom: '24px' }}>
+                We've emailed an invite to <strong>{shareEmail || 'them'}</strong>.<br/>They'll be able to access this list once they accept.
+              </p>
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                <button onClick={() => { setShareSuccess(false); setShareEmail('') }} style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500, fontSize: '0.85rem', padding: '10px 18px', borderRadius: '8px', border: '1.5px solid #ede8df', background: 'transparent', color: '#4a4235', cursor: 'pointer' }}>Invite another</button>
+                <button onClick={() => { setShowShare(false); setShareSuccess(false); setShareEmail('') }} style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '0.85rem', padding: '10px 18px', borderRadius: '8px', border: 'none', background: '#0f6644', color: '#fff', cursor: 'pointer' }}>Done</button>
+              </div>
+            </div>
+          )}
+        </Modal>
+      )}
+
       {showSearch && (
         <SearchModal
           allItems={allItems}
