@@ -89,16 +89,44 @@ export default function App() {
 
   const loadData = async () => {
     setLoading(true)
-    const [{ data: prof }, { data: listsData }, { data: allItemsData }] = await Promise.all([
+    const [{ data: prof }, { data: ownedLists }, { data: allItemsData }, { data: sharesData }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase.from('lists').select('*').eq('user_id', user.id).order('created_at'),
       supabase.from('items').select('*').eq('user_id', user.id).order('position'),
+      supabase.from('list_shares').select('list_id, permission').eq('shared_with_id', user.id).eq('status', 'accepted'),
     ])
     setProfile(prof)
     setAllItems(allItemsData || [])
-    if (listsData && listsData.length > 0) {
-      setLists(listsData)
-      setActiveList(listsData[0])
+
+    // Fetch shared lists separately (owned by others)
+    let sharedLists = []
+    if (sharesData && sharesData.length > 0) {
+      const sharedListIds = sharesData.map(s => s.list_id)
+      const { data: sharedListsData } = await supabase
+        .from('lists')
+        .select('*')
+        .in('id', sharedListIds)
+        .order('created_at')
+      // Fetch items for shared lists too
+      const { data: sharedItemsData } = await supabase
+        .from('items')
+        .select('*')
+        .in('list_id', sharedListIds)
+        .order('position')
+      if (sharedListsData) {
+        // Mark shared lists so we can show a visual indicator
+        sharedLists = sharedListsData.map(l => ({ ...l, isShared: true }))
+      }
+      if (sharedItemsData) {
+        setAllItems(prev => [...(allItemsData || []), ...sharedItemsData])
+      }
+    }
+
+    const allLists = [...(ownedLists || []), ...sharedLists]
+
+    if (allLists.length > 0) {
+      setLists(allLists)
+      setActiveList(allLists[0])
     } else {
       // Create default list
       const { data: newList } = await supabase.from('lists').insert({
@@ -184,7 +212,7 @@ export default function App() {
   const isPro = profile?.is_pro
 
   // Limits check
-  const canAddList = isPro || lists.length < FREE_MAX_LISTS
+  const canAddList = isPro || lists.filter(l => !l.isShared).length < FREE_MAX_LISTS
   const canAddItem = isPro || items.filter(i => !i.done).length < FREE_MAX_TASKS
 
   const addItem = async () => {
@@ -342,7 +370,7 @@ export default function App() {
         showToast(data.error || 'Failed to send invite', 'warn')
       } else {
         setShareSuccess(true)
-        setShareEmail('')
+        // don't clear email here — success screen uses it to show who was invited
       }
     } catch (err) {
       showToast('Something went wrong. Please try again.', 'warn')
@@ -510,8 +538,8 @@ export default function App() {
               <div key={list.id} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <button
                   onClick={() => setActiveList(list)}
-                  onContextMenu={e => { e.preventDefault(); deleteList(list.id) }}
-                  title="Right-click to delete"
+                  onContextMenu={e => { e.preventDefault(); if (!list.isShared) deleteList(list.id) }}
+                  title={list.isShared ? list.name : "Right-click to delete"}"
                   style={{
                     fontFamily: 'Inter, sans-serif', fontSize: '0.78rem', fontWeight: 500,
                     padding: '7px 16px', borderRadius: '20px',
@@ -524,6 +552,7 @@ export default function App() {
                   }}>
                   <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: activeList?.id === list.id ? 'rgba(255,255,255,0.7)' : list.color, flexShrink: 0 }} />
                   {list.name}
+                  {list.isShared && <span style={{ fontSize: '0.6rem', opacity: 0.7 }}>↗</span>}
                 </button>
                 {activeList?.id === list.id && isPro && (
                   <button
@@ -650,7 +679,7 @@ export default function App() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', borderTop: '1.5px solid #ede8df', background: '#f7f4ef' }}>
               <span style={{ fontSize: '0.72rem', color: '#9a8f7a', fontWeight: 500 }}>
                 {total - done === 0 && total > 0 ? '🎉 All done!' : `${total - done} remaining`}
-                {!isPro && <span style={{ color: '#e04e0a', marginLeft: '8px' }}> · {FREE_MAX_TASKS - items.filter(i=>!i.done).length} free slots left</span>}
+                {!isPro && !activeList?.isShared && <span style={{ color: '#e04e0a', marginLeft: '8px' }}> · {FREE_MAX_TASKS - items.filter(i=>!i.done).length} free slots left</span>}
               </span>
               <button onClick={clearDone} style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.72rem', fontWeight: 500, background: 'none', border: 'none', color: '#9a8f7a', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px' }}>Clear done</button>
             </div>
