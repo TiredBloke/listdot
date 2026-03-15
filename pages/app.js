@@ -539,7 +539,7 @@ export default function App() {
                 <button
                   onClick={() => setActiveList(list)}
                   onContextMenu={e => { e.preventDefault(); if (!list.isShared) deleteList(list.id) }}
-                  title={list.isShared ? list.name : "Right-click to delete"}"
+                  title={list.isShared ? list.name : "Right-click to delete"}
                   style={{
                     fontFamily: 'Inter, sans-serif', fontSize: '0.78rem', fontWeight: 500,
                     padding: '7px 16px', borderRadius: '20px',
